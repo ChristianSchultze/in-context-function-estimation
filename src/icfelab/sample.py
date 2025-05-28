@@ -129,6 +129,19 @@ def get_args() -> argparse.Namespace:
         default="functions.xz",
         help="File to save sampled functions to."
     )
+    parser.add_argument(
+        "--number-functions",
+        "-n",
+        type=int,
+        default=100,
+        help="Number of functions to generate."
+    )
+    parser.add_argument(
+        "--number-samples",
+        type=int,
+        default=5,
+        help="Number of samples to draw for each function."
+    )
     return parser.parse_args()
 
 
@@ -137,4 +150,4 @@ if __name__ == "__main__":
     # y_data = gauss.sample_y(x_data, n_samples=1).ravel()
     # plot_single_function(x_data, y_data)
     args = get_args()
-    generate_functions(10000, 5)
+    generate_functions(args.number_functions, args.number_samples)
