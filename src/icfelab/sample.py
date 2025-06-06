@@ -4,6 +4,7 @@ import argparse
 import json
 import lzma
 import time
+from pathlib import Path
 from typing import Any, Tuple
 
 import numpy as np
@@ -50,7 +51,7 @@ def generate_functions(number_functions: int, number_samples: int):
     """
     start = time.time()
     result_list = []
-    for i in tqdm(range(number_functions), desc="Generating functions", unit="functions"):
+    for _ in tqdm(range(number_functions), desc="Generating functions", unit="functions"):
         gaussian_process, x_data, rbf_scale = create_gaussian_process()
         function = gaussian_process.sample_y(x_data, n_samples=1).ravel()
 
@@ -88,6 +89,8 @@ def save_compressed_json(serializable_object: Any) -> None:
     """Compress and save json object."""
     json_str = json.dumps(serializable_object)
     json_bytes = json_str.encode('utf-8')
+
+    Path(args.target_file).parent.mkdir(parents=True, exist_ok=True)
     with lzma.open(args.target_file, 'wb') as file:
         file.write(json_bytes)
 
