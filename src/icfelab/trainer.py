@@ -69,10 +69,10 @@ class TransformerTrainer(lightning.LightningModule):
     """Lightning module for image recognition training. Predict step returns a source object from the dataset as well as
     the softmax prediction."""
 
-    def __init__(self, model: TransformerEncoder, batch_size: int, hyper_parameters: dict) -> None:
+    def __init__(self, model: TransformerEncoder, hyper_parameters: dict) -> None:
         super().__init__()
         self.model = model
-        self.batch_size = batch_size
+        self.batch_size = hyper_parameters["batch_size"]
         self.hyper_parameters = hyper_parameters
 
     def training_step(self, batch: torch.Tensor) -> torch.Tensor:

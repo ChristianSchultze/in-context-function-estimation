@@ -1,3 +1,5 @@
+import json
+import lzma
 from multiprocessing import Process
 from pathlib import Path
 from typing import List, Tuple, Any
@@ -26,7 +28,7 @@ def load_cfg(config_path: Path) -> dict:
 
 def initialize_random_split(
     size: int, ratio: Tuple[float, float, float]
-) -> Tuple[Any, Tuple[int, int]]:
+) -> Tuple[list, Tuple[int, int]]:
     """
     Args:
         size(int): Dataset size
@@ -49,3 +51,13 @@ def initialize_random_split(
     splits = int(ratio[0] * size), int(ratio[0] * size) + int(ratio[1] * size)
     indices = randperm(size, generator=torch.Generator().manual_seed(42)).tolist()
     return indices, splits
+
+
+def load_lzma_json_data(data_path: Path) -> Any:
+    """
+    Load lzma compressed json data.
+    """
+    with lzma.open(data_path, mode="rb") as file:
+        json_bytes = file.read()
+    json_str = json_bytes.decode("utf-8")
+    return json.loads(json_str)

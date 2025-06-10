@@ -99,7 +99,7 @@ def save_compressed_json(serializable_object: Any, target_path: Path) -> None:
 def create_gaussian_process(grid_length: int = 128, interval: tuple = (0, 1)) -> Tuple[
     GaussianProcessRegressor, np.ndarray, float]:
     """Create a Gaussian process with RBF kernel."""
-    x = np.linspace(0, 1, grid_length).reshape(-1, 1)
+    x = np.linspace(interval[0], interval[1], grid_length).reshape(-1, 1)
     rbf_scale = beta_sample_single_value()
     kernel = RBF(length_scale=rbf_scale)
     gaussian_process = GaussianProcessRegressor(kernel=kernel, alpha=1e-10)
