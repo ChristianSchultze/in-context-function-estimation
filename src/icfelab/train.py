@@ -3,7 +3,7 @@ import operator
 import os
 from multiprocessing import Process
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 import yaml
@@ -45,10 +45,11 @@ def main() -> None:
         )
         run_multiple_gpus(args)
     else:
-        train(args)
+        device_id = 0 if torch.cuda.is_available() else "cpu"
+        train(args, device_id)
 
 
-def train(args: argparse.Namespace, device_id: Optional[int] = None) -> None:
+def train(args: argparse.Namespace, device_id: Union[int, str]) -> None:
     """Initialize config, datasets and dataloader and run the lightning trainer."""
     torch.set_float32_matmul_precision("high")
     data_path = Path(args.data_path)
@@ -57,8 +58,7 @@ def train(args: argparse.Namespace, device_id: Optional[int] = None) -> None:
     cfg = load_cfg(config_path)
 
     ckpt_dir = Path(f"models/{args.name}")
-
-    device_id = device_id if device_id else 0
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
 
     data = load_lzma_json_data(data_path)
 
@@ -76,7 +76,7 @@ def train(args: argparse.Namespace, device_id: Optional[int] = None) -> None:
     encoder_cfg = cfg["encoder"]
     model = FunctionEstimator(encoder_cfg["dim"], encoder_cfg["num_head"], encoder_cfg["num_layers"], encoder_cfg["dim_feedforward"])
 
-    summary(model, input_size=((1, 1, 10),(1, 1, 10),(1, 1, 128)), device="cpu")
+    summary(model, input_size=((16, 1, 10),(16, 1, 10),(1, 1, 128)), device="cpu")
     batch_size = cfg["training"]["batch_size"]
     eval_batch_size = cfg["eval"]["batch_size"]
 
@@ -103,6 +103,8 @@ def train(args: argparse.Namespace, device_id: Optional[int] = None) -> None:
             prefetch_factor=2,
             persistent_workers=True,
         )
+        assert len(train_loader) > 1, f"Train dataset is too small! Train batches: {len(train_loader)}"
+        assert len(val_loader) > 1, f"Validation dataset is too small! Validation batches: {len(val_loader)}!"
     test_loader = DataLoader(
         test_dataset,
         batch_size=eval_batch_size,
@@ -113,6 +115,7 @@ def train(args: argparse.Namespace, device_id: Optional[int] = None) -> None:
         prefetch_factor=2,
         persistent_workers=True,
     )
+    assert len(test_loader) > 1, f"Test dataset is too small! Test batches: {len(test_loader)}"
 
     checkpoint_callback = ModelCheckpoint(
         save_top_k=1,
@@ -122,14 +125,25 @@ def train(args: argparse.Namespace, device_id: Optional[int] = None) -> None:
     )
 
     logger = TensorBoardLogger(f"logs/{args.name}", name=f"{device_id}")
-    trainer = Trainer(
-        max_epochs=args.epochs,
-        callbacks=[checkpoint_callback],
-        logger=logger,
-        devices=[device_id],
-        val_check_interval=0.5,
-        limit_val_batches=0.5,
-    )  # type: ignore
+    if device_id != "cpu":
+        trainer = Trainer(
+            max_epochs=args.epochs,
+            callbacks=[checkpoint_callback],
+            logger=logger,
+            accelerator="gpu",
+            devices=[device_id],
+            val_check_interval=0.5,
+            limit_val_batches=0.5,
+        )  # type: ignore
+    else:
+        trainer = Trainer(
+            max_epochs=args.epochs,
+            callbacks=[checkpoint_callback],
+            logger=logger,
+            accelerator="cpu",
+            val_check_interval=0.5,
+            limit_val_batches=0.5,
+        )  # type: ignore
 
     if args.eval:
         eval_path = Path(args.eval)
@@ -139,7 +153,7 @@ def train(args: argparse.Namespace, device_id: Optional[int] = None) -> None:
         )
         model = FunctionEstimator(encoder_cfg["dim"], encoder_cfg["num_head"], encoder_cfg["num_layers"], encoder_cfg["dim_feedforward"]).eval()
         lit_model = TransformerTrainer.load_from_checkpoint(
-            model_path, model=model, batch_size=eval_batch_size
+            model_path, model=model, hyper_parameters=cfg["training"]
         )
         trainer.test(lit_model, dataloaders=test_loader)
     else:
@@ -153,7 +167,7 @@ def train(args: argparse.Namespace, device_id: Optional[int] = None) -> None:
         lit_model = TransformerTrainer.load_from_checkpoint(
             checkpoint_callback.best_model_path,
             model=model,
-            batch_size=eval_batch_size,
+            hyper_parameters=cfg["training"]
         )
         trainer.test(lit_model, dataloaders=test_loader)
 

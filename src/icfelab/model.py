@@ -19,6 +19,7 @@ class FunctionEstimator(nn.Module):
         self.encoder = TransformerEncoder(TransformerEncoderLayer(dim, num_head, dim_feedforward), num_layers)
 
         self.decoder = nn.Linear(dim//2 + dim, 1, bias=True)
+        self.device = "cpu"
 
     def forward(self, input_indices: Tensor, values: Tensor, output_indices: Tensor) -> Tensor:
         """
@@ -30,7 +31,6 @@ class FunctionEstimator(nn.Module):
             Estimated function values [B,1,L]
         """
         input_indices = self.linear_indices(input_indices)
-        output_indices = self.linear_indices(output_indices)
         values = self.linear_value(values)
         input = torch.concat([input_indices, values], dim=-2)
         input = torch.permute(input, (0, 2, 1)) # encoder uses [B,L,C]
@@ -38,6 +38,7 @@ class FunctionEstimator(nn.Module):
         hidden = torch.permute(hidden, (0, 2, 1))
         result = []
         for i in range(output_indices.shape[-1]):
-            output_index = output_indices[..., i]
+            output_index = torch.full((hidden.shape[0],), output_indices[..., i].item()).to(self.device)
+            output_index = torch.squeeze(self.linear_indices(output_index[:, None, None]))
             result.append(self.decoder(torch.concat([torch.squeeze(hidden[..., -1:], dim=-1), output_index], dim=-1)))
         return torch.vstack(result)
