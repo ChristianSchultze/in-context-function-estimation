@@ -5,7 +5,7 @@ import json
 import lzma
 import time
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any, Tuple, Dict
 
 import numpy as np
 from scipy.stats import beta
@@ -42,12 +42,11 @@ def sample_gp_rbf(x: np.ndarray, gaussian_process: GaussianProcessRegressor) -> 
     return gaussian_process.sample_y(x, n_samples=1).ravel()
 
 
-def generate_functions(number_functions: int, number_samples: int, target_path: Path):
+def generate_functions(number_functions: int, target_path: Path):
     """Generate a number of functions and draw random samples of at least length 10 from all function points.
     Add gaussian noise to the sampled data with a random sampled std for each function.
     Args:
         number_functions: number of functions to generate.
-        number_samples: number of random samples to draw for each function.
         target_path: Path to the target file.
     """
     # start = time.time()
@@ -57,33 +56,33 @@ def generate_functions(number_functions: int, number_samples: int, target_path: 
         function = gaussian_process.sample_y(x_data, n_samples=1).ravel()
 
         std = abs(np.random.normal(0, 0.1, 1).item())
-
-        data = []
-        for _ in range(number_samples):
-            data.append(add_gaussian_noise(sample_random_observation_grids(function), 0, std).tolist())
-        result_list.append({"target": function.tolist(), "inputs": data, "rbf_scale": rbf_scale})
+        data = sample_random_observation_grids(function)
+        data["values"] = add_gaussian_noise(data["values"], 0, std)
+        result_list.append({"target": function.tolist(), "input": data, "rbf_scale": rbf_scale})
     save_compressed_json(result_list, target_path)
     # end = time.time()
     # print(f"gen+save took {end - start} seconds.")
 
 
-def sample_random_observation_grids(function: np.ndarray):
+def sample_random_observation_grids(function: np.ndarray) -> Dict[str, list]:
     """Generate random grids to select a random number of points from this function."""
     function_size = len(function)
+    indices = np.arange(function_size)
     random_grid = np.random.randint(low=0, high=2, size=function_size).astype(bool)
     number_of_samples = np.sum(random_grid).item()
     if number_of_samples < 10:
         additional_samples = np.random.randint(low=0, high=function_size, size=(10 - number_of_samples))
         random_grid[additional_samples] = True
-    return function[random_grid]
+    return {"values": function[random_grid].tolist(), "indices": indices[random_grid].tolist()}
 
 
-def add_gaussian_noise(data: np.ndarray, mean: float, std: float) -> np.ndarray:
+def add_gaussian_noise(data: list, mean: float, std: float) -> np.ndarray:
     """
     Add gaussian noise to data.
     """
-    noise = np.random.normal(loc=mean, scale=std, size=data.shape)
-    return data + noise
+    data_ndarray = np.array(data)
+    noise = np.random.normal(loc=mean, scale=std, size=data_ndarray.shape)
+    return (data_ndarray + noise).tolist()
 
 
 def save_compressed_json(serializable_object: Any, target_path: Path) -> None:
@@ -140,12 +139,6 @@ def get_args() -> argparse.Namespace:
         default=100,
         help="Number of functions to generate."
     )
-    parser.add_argument(
-        "--number-samples",
-        type=int,
-        default=5,
-        help="Number of samples to draw for each function."
-    )
     return parser.parse_args()
 
 
@@ -154,4 +147,4 @@ if __name__ == "__main__":
     # y_data = gauss.sample_y(x_data, n_samples=1).ravel()
     # plot_single_function(x_data, y_data)
     args = get_args()
-    generate_functions(args.number_functions, args.number_samples, Path(args.target_file))
+    generate_functions(args.number_functions, Path(args.target_file))
