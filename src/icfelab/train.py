@@ -13,8 +13,9 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader
 from torchinfo import summary
 
+from icfelab.model import FunctionEstimator
 from src.icfelab.dataset import SampleDataset
-from src.icfelab.trainer import init_transformer_encoder, TransformerTrainer, collate_fn
+from src.icfelab.trainer import TransformerTrainer, collate_fn
 from src.icfelab.utils import run_processes, load_cfg, initialize_random_split, load_lzma_json_data
 
 
@@ -73,9 +74,9 @@ def train(args: argparse.Namespace, device_id: Optional[int] = None) -> None:
     test_dataset = SampleDataset(getter(data))
 
     encoder_cfg = cfg["encoder"]
-    model = init_transformer_encoder(encoder_cfg["dim"], encoder_cfg["num_head"], encoder_cfg["num_layers"], encoder_cfg["dim_feedforward"])
+    model = FunctionEstimator(encoder_cfg["dim"], encoder_cfg["num_head"], encoder_cfg["num_layers"], encoder_cfg["dim_feedforward"])
 
-    summary(model, input_size=(1, 10, 128), device="cpu")
+    summary(model, input_size=((1, 1, 10),(1, 1, 10),(1, 1, 128)), device="cpu")
     batch_size = cfg["training"]["batch_size"]
     eval_batch_size = cfg["eval"]["batch_size"]
 
@@ -136,7 +137,7 @@ def train(args: argparse.Namespace, device_id: Optional[int] = None) -> None:
             eval_path
             / [f for f in os.listdir(eval_path) if f.startswith(f"{device_id}")][0]
         )
-        model = init_transformer_encoder(encoder_cfg["dim"], encoder_cfg["num_head"], encoder_cfg["num_layers"], encoder_cfg["dim_feedforward"]).eval()
+        model = FunctionEstimator(encoder_cfg["dim"], encoder_cfg["num_head"], encoder_cfg["num_layers"], encoder_cfg["dim_feedforward"]).eval()
         lit_model = TransformerTrainer.load_from_checkpoint(
             model_path, model=model, batch_size=eval_batch_size
         )

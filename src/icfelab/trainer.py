@@ -10,10 +10,6 @@ from torch.nn.functional import cross_entropy
 from torch.optim import Optimizer
 from torchvision import transforms
 
-def init_transformer_encoder(dimension: int, nhead: int, nlayers: int, dimff: int) -> TransformerEncoder:
-    model = TransformerEncoder(TransformerEncoderLayer(dimension, nhead, dimff), nlayers)
-    return model
-
 
 def collate_fn(batch: Tuple[List[torch.Tensor], ...]) -> Tuple[torch.Tensor, torch.Tensor, List[str]]:
     """Custom collate function, that pads crops horizontally to fit them all in one tensor batch."""
