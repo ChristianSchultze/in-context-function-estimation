@@ -42,14 +42,15 @@ def sample_gp_rbf(x: np.ndarray, gaussian_process: GaussianProcessRegressor) -> 
     return gaussian_process.sample_y(x, n_samples=1).ravel()
 
 
-def generate_functions(number_functions: int, number_samples: int):
+def generate_functions(number_functions: int, number_samples: int, target_path: Path):
     """Generate a number of functions and draw random samples of at least length 10 from all function points.
     Add gaussian noise to the sampled data with a random sampled std for each function.
     Args:
         number_functions: number of functions to generate.
         number_samples: number of random samples to draw for each function.
+        target_path: Path to the target file.
     """
-    start = time.time()
+    # start = time.time()
     result_list = []
     for _ in tqdm(range(number_functions), desc="Generating functions", unit="functions"):
         gaussian_process, x_data, rbf_scale = create_gaussian_process()
@@ -60,20 +61,20 @@ def generate_functions(number_functions: int, number_samples: int):
         data = []
         for _ in range(number_samples):
             data.append(add_gaussian_noise(sample_random_observation_grids(function), 0, std).tolist())
-        result_list.append((function.tolist(), data, rbf_scale))
-    save_compressed_json(result_list)
-    end = time.time()
-    print(f"gen+save took {end - start} seconds.")
+        result_list.append({"target": function.tolist(), "inputs": data, "rbf_scale": rbf_scale})
+    save_compressed_json(result_list, target_path)
+    # end = time.time()
+    # print(f"gen+save took {end - start} seconds.")
 
 
 def sample_random_observation_grids(function: np.ndarray):
     """Generate random grids to select a random number of points from this function."""
     function_size = len(function)
-    random_grid = np.random.randint(low=0, high=1, size=function_size)
+    random_grid = np.random.randint(low=0, high=2, size=function_size).astype(bool)
     number_of_samples = np.sum(random_grid).item()
     if number_of_samples < 10:
         additional_samples = np.random.randint(low=0, high=function_size, size=(10 - number_of_samples))
-        random_grid[additional_samples] = 1
+        random_grid[additional_samples] = True
     return function[random_grid]
 
 
@@ -85,13 +86,13 @@ def add_gaussian_noise(data: np.ndarray, mean: float, std: float) -> np.ndarray:
     return data + noise
 
 
-def save_compressed_json(serializable_object: Any) -> None:
+def save_compressed_json(serializable_object: Any, target_path: Path) -> None:
     """Compress and save json object."""
     json_str = json.dumps(serializable_object)
     json_bytes = json_str.encode('utf-8')
 
-    Path(args.target_file).parent.mkdir(parents=True, exist_ok=True)
-    with lzma.open(args.target_file, 'wb') as file:
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    with lzma.open(target_path, 'wb') as file:
         file.write(json_bytes)
 
 
@@ -153,4 +154,4 @@ if __name__ == "__main__":
     # y_data = gauss.sample_y(x_data, n_samples=1).ravel()
     # plot_single_function(x_data, y_data)
     args = get_args()
-    generate_functions(args.number_functions, args.number_samples)
+    generate_functions(args.number_functions, args.number_samples, Path(args.target_file))
