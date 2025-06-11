@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 from torchinfo import summary
 
 from icfelab.model import FunctionEstimator
+from icfelab.utils import plot_single_prediction
 from src.icfelab.dataset import SampleDataset
 from src.icfelab.trainer import TransformerTrainer, collate_fn
 from src.icfelab.utils import run_processes, load_cfg, initialize_random_split, load_lzma_json_data
@@ -55,7 +56,10 @@ def train(args: argparse.Namespace, device_id: Union[int, str]) -> None:
     data_path = Path(args.data_path)
     config_path = Path(args.config_path)
     # define any number of nn.Modules (or use your current ones)
-    cfg = load_cfg(config_path)
+    if not args.eval:
+        cfg = load_cfg(config_path)
+    else:
+        cfg = load_cfg(Path(args.eval) / "model.yml")
 
     ckpt_dir = Path(f"models/{args.name}")
     ckpt_dir.mkdir(parents=True, exist_ok=True)
@@ -76,7 +80,7 @@ def train(args: argparse.Namespace, device_id: Union[int, str]) -> None:
     encoder_cfg = cfg["encoder"]
     model = FunctionEstimator(encoder_cfg["dim"], encoder_cfg["num_head"], encoder_cfg["num_layers"], encoder_cfg["dim_feedforward"])
 
-    summary(model, input_size=((16, 1, 10),(16, 1, 10),(1, 1, 128)), device="cpu")
+    summary(model, input_size=((16, 1, 10),(16, 1, 10),(128,)), device="cpu")
     batch_size = cfg["training"]["batch_size"]
     eval_batch_size = cfg["eval"]["batch_size"]
 
@@ -146,21 +150,46 @@ def train(args: argparse.Namespace, device_id: Union[int, str]) -> None:
         )  # type: ignore
 
     if args.eval:
-        eval_path = Path(args.eval)
-        model_path = (
-            eval_path
-            / [f for f in os.listdir(eval_path) if f.startswith(f"{device_id}")][0]
-        )
+        model_path = cfg["eval"]["model_path"]
         model = FunctionEstimator(encoder_cfg["dim"], encoder_cfg["num_head"], encoder_cfg["num_layers"], encoder_cfg["dim_feedforward"]).eval()
         lit_model = TransformerTrainer.load_from_checkpoint(
             model_path, model=model, hyper_parameters=cfg["training"]
         )
         trainer.test(lit_model, dataloaders=test_loader)
+
+        predict_dataset = SampleDataset(test_dataset.data[20:40])
+        predict_loader = DataLoader(
+            predict_dataset,
+            batch_size=eval_batch_size,
+            shuffle=False,
+            drop_last=False,
+            collate_fn=collate_fn,
+            num_workers=args.num_workers,
+            prefetch_factor=2,
+            persistent_workers=True,
+        )
+
+        predictions = trainer.predict(lit_model, predict_loader)
+
+        number = 0
+        pred_plot_path = Path(f"data/{args.name}")
+        pred_plot_path.mkdir(parents=True, exist_ok=True)
+        for batch in predictions:
+            prediction = torch.squeeze(batch[0])
+            indices, values, target = batch[1]
+            indices = torch.squeeze(indices)
+            values = torch.squeeze(values)
+            target = torch.squeeze(target)
+
+            for i in range(len(prediction)):
+                plot_single_prediction(prediction[i], target[i], indices[i], values[i], pred_plot_path / f"{number}.png")
+                number += 1
     else:
         # pylint: disable=possibly-used-before-assignment
         trainer.fit(
             model=lit_model, train_dataloaders=train_loader, val_dataloaders=val_loader
         )
+        cfg["eval"]["model_path"] = checkpoint_callback.best_model_path
         with open(ckpt_dir / "model.yml", "w", encoding="utf-8") as file:
             yaml.safe_dump(cfg, file)
 

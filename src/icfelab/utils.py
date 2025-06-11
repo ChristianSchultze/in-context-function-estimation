@@ -4,9 +4,12 @@ from multiprocessing import Process
 from pathlib import Path
 from typing import List, Tuple, Any
 
+import numpy as np
 import torch
 import yaml
-from torch import randperm
+from matplotlib import pyplot as plt
+from numpy import ndarray
+from torch import randperm, Tensor
 from tqdm import tqdm
 
 def run_processes(
@@ -61,3 +64,41 @@ def load_lzma_json_data(data_path: Path) -> Any:
         json_bytes = file.read()
     json_str = json_bytes.decode("utf-8")
     return json.loads(json_str)
+
+
+def plot_single_prediction(pred_data: Tensor, target_data: Tensor, indices: Tensor, values: Tensor, path: Path) -> None:
+    x_data = torch.arange(len(pred_data)) / len(pred_data)
+    indices = indices / len(pred_data)
+    plt.figure(figsize=(8, 4))
+
+    plt.plot(x_data, target_data, label="target", color='blue')
+    plt.scatter(indices, values, label="context points", color='green')
+    plt.plot(x_data, pred_data, label="prediction", color='red')
+
+    plt.title("")
+    plt.xlabel("x")
+    plt.ylabel("f(x)")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+
+    plt.savefig(path)
+
+def plot_test(target_data: Tensor, indices: Tensor, values: Tensor,
+                           path: Path) -> None:
+    x_data = torch.arange(len(target_data)) / len(target_data)
+    indices = indices / len(target_data)
+    plt.figure(figsize=(8, 4))
+
+    plt.plot(x_data, target_data, label="target", color='blue')
+    plt.scatter(indices, values, label="context points", color='green')
+    # plt.plot(x_data, pred_data, label="prediction", color='red')
+
+    plt.title("")
+    plt.xlabel("x")
+    plt.ylabel("f(x)")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+
+    plt.savefig(path)
