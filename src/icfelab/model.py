@@ -24,10 +24,6 @@ class FunctionEstimator(nn.Module):
         self.linear_indices_2 = nn.Conv1d(1, dim // 2, 1)
         self.linear_value = nn.Conv1d(1, dim // 2, 1)
 
-        self.test_conv_1 = nn.Conv1d(dim, dim, 5, dilation=2, padding="same")
-        self.test_conv_2 = nn.Conv1d(dim, dim, 5, dilation=2, padding="same")
-        self.test_conv_3 = nn.Conv1d(dim, dim, 5, dilation=2, padding="same")
-
         self.bnorm = nn.BatchNorm1d(dim)
         self.encoder = TransformerEncoder(TransformerEncoderLayer(dim, num_head, dim_feedforward), num_layers)
 
