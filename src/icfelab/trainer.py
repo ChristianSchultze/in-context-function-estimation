@@ -81,13 +81,13 @@ class TransformerTrainer(lightning.LightningModule):
         the same length as the encoder result. Only after the encoder results have been processed, the actual output
         starts.
         """
-        self.model.device = self.device # type: ignore
+        self.model.device = self.device  # type: ignore
 
         indices = indices.to(self.device)
         values = values.to(self.device)
         target = target.to(self.device)
 
-        min_value, max_value = torch.min(values, dim=-1)[0], torch.max(values, dim=-1)[0] # type: ignore
+        min_value, max_value = torch.min(values, dim=-1)[0], torch.max(values, dim=-1)[0]  # type: ignore
         pred_tuple = self.model(indices, values, torch.arange(target.shape[-1]).float())
         loss = self.calculate_loss(max_value, min_value, pred_tuple, target)
         return loss, pred_tuple
@@ -107,7 +107,8 @@ class TransformerTrainer(lightning.LightningModule):
             mean_pred, var_pred = pred_tuple
             mean_pred = mean_pred * (max_value - min_value) + min_value
             var_pred = torch.exp(var_pred)  # model is supposed to predict the log variance for numerical stability
-            loss = 0.5 * torch.log(2 * torch.pi * var_pred) + 0.5 * ((target[:, 0, :] - mean_pred) ** 2).mean() / var_pred
+            loss = 0.5 * torch.log(2 * torch.pi * var_pred) + 0.5 * (
+                        (target[:, 0, :] - mean_pred) ** 2).mean() / var_pred
             loss = loss.mean()
         else:
             pred = pred_tuple[0]
