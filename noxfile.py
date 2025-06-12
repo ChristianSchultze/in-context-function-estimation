@@ -24,7 +24,7 @@ def lint(session):
     session.install(".[dev]")
     session.install("pylint")
     session.run("pylint",
-                "src/ssr",
+                "src/icfelab",
                 "tests")
 
 
@@ -44,7 +44,7 @@ def mypy(session):
         "--namespace-packages",
         "--implicit-reexport",  # tensorboard is untyped
         "--allow-untyped-calls",  # tensorboard is untyped
-        "src/ssr",
+        "src/icfelab",
     )
 
 

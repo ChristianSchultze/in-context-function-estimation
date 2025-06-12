@@ -5,8 +5,8 @@ from statistics import mean
 
 import pytest
 
-from src.icfelab.sample import generate_functions
-from src.icfelab.utils import load_lzma_json_data
+from icfelab.sample import generate_functions
+from icfelab.utils import load_lzma_json_data
 
 
 @pytest.fixture(scope='module', autouse=True)
