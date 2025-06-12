@@ -87,7 +87,7 @@ def get_trainer(args: argparse.Namespace, checkpoint_callback: ModelCheckpoint, 
             callbacks=[checkpoint_callback],
             logger=logger,
             accelerator="gpu",
-            devices=[device_id],
+            devices=[device_id], # type: ignore
             val_check_interval=0.5,
             limit_val_batches=0.5,
         )  # type: ignore
@@ -143,7 +143,7 @@ def plot_predictions(args: argparse.Namespace, lit_model: TransformerTrainer, pr
     number = 0
     pred_plot_path = Path(f"data/{args.name}")
     pred_plot_path.mkdir(parents=True, exist_ok=True)
-    for batch in predictions:
+    for batch in predictions: # type: ignore
         prediction = torch.squeeze(batch[0])
         indices, values, target = batch[1]
         indices = torch.squeeze(indices)
