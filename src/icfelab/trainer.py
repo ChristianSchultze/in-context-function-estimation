@@ -1,5 +1,4 @@
 """Module for training related functions and the lightning module for the training setting."""
-from pathlib import Path
 from typing import Tuple, List
 
 import lightning
@@ -90,17 +89,31 @@ class TransformerTrainer(lightning.LightningModule):
 
         min_value, max_value = torch.min(values, dim=-1)[0], torch.max(values, dim=-1)[0]
         pred_tuple = self.model(indices, values, torch.arange(target.shape[-1]).float())
+        loss = self.calculate_loss(max_value, min_value, pred_tuple, target)
+        return loss, pred_tuple
+
+    def calculate_loss(self, max_value: Tensor, min_value: Tensor, pred_tuple: Tensor, target: Tensor) -> Tensor:
+        """
+        Calculate gaussian nll loss if gaussian mode and rmse loss otherwise.
+        Args:
+            max_value: normalization parameter
+            min_value: normalization parameter
+            pred_tuple: if gaussian mode is activated the tuple contains mean and variance prediction.
+            Otherwise the first element contains the desired output value.
+            target: target values
+        Returns: loss value
+        """
         if self.gaussian:
             mean_pred, var_pred = pred_tuple
             mean_pred = mean_pred * (max_value - min_value) + min_value
-            var_pred = torch.exp(var_pred) # model is supposed to predict the log variance for numerical stability
-            loss = 0.5 * torch.log(2*torch.pi * var_pred) + 0.5 * ((target-mean_pred)**2).mean()/var_pred
+            var_pred = torch.exp(var_pred)  # model is supposed to predict the log variance for numerical stability
+            loss = 0.5 * torch.log(2 * torch.pi * var_pred) + 0.5 * ((target - mean_pred) ** 2).mean() / var_pred
             loss = loss.mean()
         else:
             pred = pred_tuple[0]
             pred = pred * (max_value - min_value) + min_value
             loss = torch.sqrt(self.loss(pred, target[:, 0, :]))
-        return loss, pred_tuple
+        return loss
 
     def validation_step(self, batch: Tuple[Tensor, Tensor, Tensor]) -> None:
         """Evaluate validation dataset"""

@@ -7,7 +7,8 @@ from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
 
 class FunctionEstimator(nn.Module):
-    """Function estimation model consisting out of a TranformerEncoder, as well as a Linear Layer generating new function values.
+    """Function estimation model consisting out of a TranformerEncoder, as well as a Linear Layer generating new
+    function values.
     The Transformer creates a hidden representation of the input sequence. Input sequence has a time index and a
     function value.
     The output Linear Layer takes in a time index and the hidden representation of the input sequence to generate the
@@ -90,10 +91,10 @@ class FunctionEstimator(nn.Module):
         """
         input_indices = self.linear_indices(input_indices)
         values = self.linear_value(values)
-        input = torch.concat([input_indices, values], dim=-2)
+        data = torch.concat([input_indices, values], dim=-2)
 
-        input = torch.permute(input, (0, 2, 1))  # encoder uses [B,L,C]
-        hidden = self.encoder(input)
+        data = torch.permute(data, (0, 2, 1))  # encoder uses [B,L,C]
+        hidden = self.encoder(data)
         hidden = torch.permute(hidden, (0, 2, 1))
         return hidden
 

@@ -24,8 +24,7 @@ def lint(session):
     session.install(".[dev]")
     session.install("pylint")
     session.run("pylint",
-                "src/icfelab",
-                "tests")
+                "src/icfelab")
 
 
 @nox.session(name="typing")

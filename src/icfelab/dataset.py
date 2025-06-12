@@ -1,3 +1,4 @@
+"""Minimal dataset module for handling function data."""
 from typing import List, Tuple
 
 import torch

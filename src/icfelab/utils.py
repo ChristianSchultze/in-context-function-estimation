@@ -1,14 +1,14 @@
+"""Utility functions"""
 import json
 import lzma
 from multiprocessing import Process
 from pathlib import Path
 from typing import List, Tuple, Any
 
-import numpy as np
 import torch
 import yaml
 from matplotlib import pyplot as plt
-from numpy import ndarray
+# pylint: disable=no-name-in-module
 from torch import randperm, Tensor
 from tqdm import tqdm
 
@@ -67,6 +67,7 @@ def load_lzma_json_data(data_path: Path) -> Any:
 
 
 def plot_single_prediction(pred_data: Tensor, target_data: Tensor, indices: Tensor, values: Tensor, path: Path) -> None:
+    """Plot predicted function with target and context points."""
     x_data = torch.arange(len(pred_data)) / len(pred_data)
     indices = indices / len(pred_data)
     plt.figure(figsize=(8, 4))
@@ -87,6 +88,8 @@ def plot_single_prediction(pred_data: Tensor, target_data: Tensor, indices: Tens
 
 def plot_test(target_data: Tensor, indices: Tensor, values: Tensor,
                            path: Path) -> None:
+    """Plot ground truth function with context points."""
+    # pylint: disable=duplicate-code
     x_data = torch.arange(len(target_data)) / len(target_data)
     indices = indices / len(target_data)
     plt.figure(figsize=(8, 4))
