@@ -107,7 +107,7 @@ class TransformerTrainer(lightning.LightningModule):
             mean_pred, var_pred = pred_tuple
             mean_pred = mean_pred * (max_value - min_value) + min_value
             var_pred = torch.exp(var_pred)  # model is supposed to predict the log variance for numerical stability
-            loss = 0.5 * torch.log(2 * torch.pi * var_pred) + 0.5 * ((target - mean_pred) ** 2).mean() / var_pred
+            loss = 0.5 * torch.log(2 * torch.pi * var_pred) + 0.5 * ((target[:, 0, :] - mean_pred) ** 2).mean() / var_pred
             loss = loss.mean()
         else:
             pred = pred_tuple[0]
