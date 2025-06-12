@@ -7,13 +7,14 @@ from pathlib import Path
 from typing import Any, Tuple, Dict
 
 import numpy as np
+from numpy import ndarray
 from scipy.stats import beta
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from tqdm import tqdm
 
 
-def beta_sample_single_value(alpha: float = 1.0, beta_param: float = 10.0, scale: float = 1.0):
+def beta_sample_single_value(alpha: float = 1.0, beta_param: float = 10.0, scale: float = 1.0) -> ndarray:
     """
     Samples a length_scale from a Beta distribution and rescales it.
 
@@ -29,7 +30,7 @@ def beta_sample_single_value(alpha: float = 1.0, beta_param: float = 10.0, scale
     return sampled_value * scale
 
 
-def sample_gp_rbf(x: np.ndarray, gaussian_process: GaussianProcessRegressor) -> np.ndarray:
+def sample_gp_rbf(x: np.ndarray, gaussian_process: GaussianProcessRegressor) -> ndarray:
     """Samples a function from a Gaussian Process with RBF kernel.
     Parameters:
         x(ndarray): The input values for which to sample the function.
@@ -40,7 +41,7 @@ def sample_gp_rbf(x: np.ndarray, gaussian_process: GaussianProcessRegressor) -> 
     return gaussian_process.sample_y(x, n_samples=1).ravel()
 
 
-def generate_functions(number_functions: int, target_path: Path):
+def generate_functions(number_functions: int, target_path: Path) -> None:
     """Generate a number of functions and draw random samples of at least length 10 from all function points.
     Add gaussian noise to the sampled data with a random sampled std for each function.
     Args:
@@ -55,7 +56,7 @@ def generate_functions(number_functions: int, target_path: Path):
 
         std = abs(np.random.normal(0, 0.1, 1).item())
         data = sample_random_observation_grids(function)
-        data["values"] = add_gaussian_noise(data["values"], 0, std)
+        data["values"] = add_gaussian_noise(data["values"], 0, std)  # type: ignore
         result_list.append({"target": function.tolist(), "input": data, "rbf_scale": rbf_scale})
     save_compressed_json(result_list, target_path)
     # end = time.time()
@@ -74,7 +75,7 @@ def sample_random_observation_grids(function: np.ndarray) -> Dict[str, list]:
     return {"values": function[random_grid].tolist(), "indices": indices[random_grid].tolist()}
 
 
-def add_gaussian_noise(data: list, mean: float, std: float) -> np.ndarray:
+def add_gaussian_noise(data: list, mean: float, std: float) -> ndarray:
     """
     Add gaussian noise to data.
     """
@@ -101,6 +102,7 @@ def create_gaussian_process(grid_length: int = 128, interval: tuple = (0, 1)) ->
     kernel = RBF(length_scale=rbf_scale)
     gaussian_process = GaussianProcessRegressor(kernel=kernel, alpha=1e-10)
     return gaussian_process, x, rbf_scale
+
 
 def get_args() -> argparse.Namespace:
     """

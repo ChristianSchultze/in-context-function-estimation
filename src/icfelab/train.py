@@ -13,12 +13,11 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader, Dataset
 
-from icfelab.dataset import SampleDataset
 from icfelab.model import FunctionEstimator
 from icfelab.utils import plot_single_prediction
-from src.icfelab.dataset import SampleDataset
-from src.icfelab.trainer import TransformerTrainer, collate_fn
-from src.icfelab.utils import run_processes, load_cfg, initialize_random_split, load_lzma_json_data
+from icfelab.dataset import SampleDataset
+from icfelab.trainer import TransformerTrainer, collate_fn
+from icfelab.utils import run_processes, load_cfg, initialize_random_split, load_lzma_json_data
 
 
 def run_multiple_gpus(args: argparse.Namespace) -> None:
@@ -53,8 +52,8 @@ def main() -> None:
 
 def train(args: argparse.Namespace, device_id: Union[int, str]) -> None:
     """Initialize config, datasets and dataloader and run the lightning trainer."""
-    cfg, ckpt_dir, eval_batch_size, lit_model, model, test_dataset, test_loader, train_loader, val_loader = init_training(
-        args)
+    cfg, ckpt_dir, eval_batch_size, lit_model, model, test_dataset, test_loader, train_loader, val_loader = (
+        init_training(args))
 
     checkpoint_callback = ModelCheckpoint(
         save_top_k=1,
@@ -115,7 +114,7 @@ def eval_train(args: argparse.Namespace, cfg: dict, checkpoint_callback: ModelCh
     with open(ckpt_dir / "model.yml", "w", encoding="utf-8") as file:
         yaml.safe_dump(cfg, file)
     lit_model = TransformerTrainer.load_from_checkpoint(
-        checkpoint_callback.best_model_path,
+        checkpoint_path=checkpoint_callback.best_model_path,
         model=model,
         hyper_parameters=cfg["training"]
     )
@@ -131,6 +130,14 @@ def eval_train(args: argparse.Namespace, cfg: dict, checkpoint_callback: ModelCh
         prefetch_factor=2,
         persistent_workers=True,
     )
+    plot_predictions(args, lit_model, predict_loader, trainer)
+
+
+def plot_predictions(args: argparse.Namespace, lit_model: TransformerTrainer, predict_loader: DataLoader,
+                     trainer: Trainer) -> None:
+    """
+    Unpack predicted batches and plot predicted functions.
+    """
     predictions = trainer.predict(lit_model, predict_loader)
     number = 0
     pred_plot_path = Path(f"data/{args.name}")
@@ -142,7 +149,7 @@ def eval_train(args: argparse.Namespace, cfg: dict, checkpoint_callback: ModelCh
         values = torch.squeeze(values)
         target = torch.squeeze(target)
 
-        for i in range(len(prediction)):
+        for i in enumerate(prediction):
             plot_single_prediction(prediction[i], target[i], indices[i], values[i],
                                    pred_plot_path / f"{number}.png")
             number += 1
@@ -150,11 +157,13 @@ def eval_train(args: argparse.Namespace, cfg: dict, checkpoint_callback: ModelCh
 
 def evaluate(args: argparse.Namespace, cfg: dict, eval_batch_size: int, test_dataset: Dataset, test_loader: DataLoader,
              trainer: Trainer) -> None:
+    """Evaluate model on test dataset and plot a few predicted functions. This function loads the model directly from
+    disk."""
     model_path = cfg["eval"]["model_path"]
     model = FunctionEstimator(cfg["encoder"]["dim"], cfg["encoder"]["num_head"], cfg["encoder"]["num_layers"],
                               cfg["encoder"]["dim_feedforward"], gaussian=args.gaussian).eval()
     lit_model = TransformerTrainer.load_from_checkpoint(
-        model_path, model=model, hyper_parameters=cfg["training"]
+        checkpoint_path=model_path, model=model, hyper_parameters=cfg["training"]
     )
     trainer.test(lit_model, dataloaders=test_loader)
     predict_dataset = SampleDataset(test_dataset.data[20:40])
@@ -168,21 +177,7 @@ def evaluate(args: argparse.Namespace, cfg: dict, eval_batch_size: int, test_dat
         prefetch_factor=2,
         persistent_workers=True,
     )
-    predictions = trainer.predict(lit_model, predict_loader)
-    number = 0
-    pred_plot_path = Path(f"data/{args.name}")
-    pred_plot_path.mkdir(parents=True, exist_ok=True)
-    for batch in predictions:
-        prediction = torch.squeeze(batch[0])
-        indices, values, target = batch[1]
-        indices = torch.squeeze(indices)
-        values = torch.squeeze(values)
-        target = torch.squeeze(target)
-
-        for i in range(len(prediction)):
-            plot_single_prediction(prediction[i], target[i], indices[i], values[i],
-                                   pred_plot_path / f"{number}.png")
-            number += 1
+    plot_predictions(args, lit_model, predict_loader, trainer)
 
 
 def init_training(args: argparse.Namespace) -> tuple:

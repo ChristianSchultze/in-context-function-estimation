@@ -13,7 +13,7 @@ class SampleDataset(Dataset):
         self.augmentation = augmentation
         self.data = data
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.data)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
