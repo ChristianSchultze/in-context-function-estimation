@@ -44,7 +44,7 @@ def pad_data(data: List[torch.Tensor], length: int) \
     return padded_data
 
 
-def get_max_length(data: List[Tensor]) -> Tuple[int, int]:
+def get_max_length(data: List[Tensor]) -> int:
     """
     Determine maximum sequence length.
     """
@@ -75,19 +75,19 @@ class TransformerTrainer(lightning.LightningModule):
                  on_step=True)
         return loss
 
-    def run_model(self, indices: Tensor, values: Tensor, target: Tensor) -> Tuple[Tensor, Tensor]:
+    def run_model(self, indices: Tensor, values: Tensor, target: Tensor) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
         """
         Predict input image and calculate loss. The target is modified, so that it consists out of start token for
         the same length as the encoder result. Only after the encoder results have been processed, the actual output
         starts.
         """
-        self.model.device = self.device
+        self.model.device = self.device # type: ignore
 
         indices = indices.to(self.device)
         values = values.to(self.device)
         target = target.to(self.device)
 
-        min_value, max_value = torch.min(values, dim=-1)[0], torch.max(values, dim=-1)[0]
+        min_value, max_value = torch.min(values, dim=-1)[0], torch.max(values, dim=-1)[0] # type: ignore
         pred_tuple = self.model(indices, values, torch.arange(target.shape[-1]).float())
         loss = self.calculate_loss(max_value, min_value, pred_tuple, target)
         return loss, pred_tuple

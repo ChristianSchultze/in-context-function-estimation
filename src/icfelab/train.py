@@ -65,7 +65,7 @@ def train(args: argparse.Namespace, device_id: Union[int, str]) -> None:
     trainer = get_trainer(args, checkpoint_callback, device_id)
 
     if args.eval:
-        evaluate(args, cfg, eval_batch_size, lit_model, model, test_dataset,
+        evaluate(args, cfg, eval_batch_size, test_dataset,
                  test_loader, trainer)
     else:
         # pylint: disable=possibly-used-before-assignment
@@ -113,6 +113,7 @@ def eval_train(args: argparse.Namespace, cfg: dict, checkpoint_callback: ModelCh
     cfg["eval"]["model_path"] = checkpoint_callback.best_model_path
     with open(ckpt_dir / "model.yml", "w", encoding="utf-8") as file:
         yaml.safe_dump(cfg, file)
+    # pylint: disable=no-value-for-parameter
     lit_model = TransformerTrainer.load_from_checkpoint(
         checkpoint_path=checkpoint_callback.best_model_path,
         model=model,
@@ -162,6 +163,7 @@ def evaluate(args: argparse.Namespace, cfg: dict, eval_batch_size: int, test_dat
     model_path = cfg["eval"]["model_path"]
     model = FunctionEstimator(cfg["encoder"]["dim"], cfg["encoder"]["num_head"], cfg["encoder"]["num_layers"],
                               cfg["encoder"]["dim_feedforward"], gaussian=args.gaussian).eval()
+    # pylint: disable=no-value-for-parameter
     lit_model = TransformerTrainer.load_from_checkpoint(
         checkpoint_path=model_path, model=model, hyper_parameters=cfg["training"]
     )

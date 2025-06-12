@@ -14,7 +14,7 @@ from sklearn.gaussian_process.kernels import RBF
 from tqdm import tqdm
 
 
-def beta_sample_single_value(alpha: float = 1.0, beta_param: float = 10.0, scale: float = 1.0) -> ndarray:
+def beta_sample_single_value(alpha: float = 1.0, beta_param: float = 10.0, scale: float = 1.0) -> float:
     """
     Samples a length_scale from a Beta distribution and rescales it.
 
