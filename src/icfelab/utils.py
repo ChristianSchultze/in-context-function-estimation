@@ -107,3 +107,21 @@ def plot_test(target_data: Tensor, indices: Tensor, values: Tensor,
 
     plt.savefig(path)
     plt.close()
+
+def plot_target(target_data: Tensor, path: Path) -> None:
+    """Plot ground truth function."""
+    # pylint: disable=duplicate-code
+    x_data = torch.arange(len(target_data)) / len(target_data)
+    plt.figure(figsize=(8, 4))
+
+    plt.plot(x_data, target_data, label="target", color='blue')
+
+    plt.title("")
+    plt.xlabel("x")
+    plt.ylabel("f(x)")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+
+    plt.savefig(path)
+    plt.close()

@@ -150,8 +150,8 @@ def plot_predictions(args: argparse.Namespace, lit_model: TransformerTrainer, pr
         values = torch.squeeze(values)
         target = torch.squeeze(target)
 
-        for i in enumerate(prediction):
-            plot_single_prediction(prediction[i], target[i], indices[i], values[i],
+        for i, pred_data in enumerate(prediction):
+            plot_single_prediction(pred_data, target[i], indices[i], values[i],
                                    pred_plot_path / f"{number}.png")
             number += 1
 

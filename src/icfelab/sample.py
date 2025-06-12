@@ -51,13 +51,16 @@ def generate_functions(number_functions: int, target_path: Path) -> None:
     # start = time.time()
     result_list = []
     for _ in tqdm(range(number_functions), desc="Generating functions", unit="functions"):
-        gaussian_process, x_data, rbf_scale = create_gaussian_process()
-        function = gaussian_process.sample_y(x_data, n_samples=1).ravel()
+        co_var, x_data, rbf_scale = create_covariance()
+        function = np.random.multivariate_normal(mean=np.zeros(co_var.shape[0]), cov=co_var, size=1).squeeze()
 
         std = abs(np.random.normal(0, 0.1, 1).item())
         data = sample_random_observation_grids(function)
         data["values"] = add_gaussian_noise(data["values"], 0, std)  # type: ignore
         result_list.append({"target": function.tolist(), "input": data, "rbf_scale": rbf_scale})
+    # for i, result in enumerate(result_list):
+    #     plot_test(torch.tensor(result["target"]), torch.tensor(result["input"]["indices"]), torch.tensor(result["input"]["values"]), Path(f"data/generate/{i}.png"))
+        # plot_target(torch.tensor(result["target"]), Path(f"data/generate/{i}.png"))
     save_compressed_json(result_list, target_path)
     # end = time.time()
     # print(f"gen+save took {end - start} seconds.")
@@ -94,14 +97,13 @@ def save_compressed_json(serializable_object: Any, target_path: Path) -> None:
         file.write(json_bytes)
 
 
-def create_gaussian_process(grid_length: int = 128, interval: tuple = (0, 1)) -> Tuple[
-    GaussianProcessRegressor, np.ndarray, float]:
+def create_covariance(grid_length: int = 128, interval: tuple = (0, 1)) -> Tuple[
+    ndarray, ndarray, float]:
     """Create a Gaussian process with RBF kernel."""
     x = np.linspace(interval[0], interval[1], grid_length).reshape(-1, 1)
     rbf_scale = beta_sample_single_value()
     kernel = RBF(length_scale=rbf_scale)
-    gaussian_process = GaussianProcessRegressor(kernel=kernel, alpha=1e-10)
-    return gaussian_process, x, rbf_scale
+    return kernel(x), x, rbf_scale
 
 
 def get_args() -> argparse.Namespace:
