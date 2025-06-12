@@ -4,7 +4,6 @@ from typing import Tuple
 import torch
 from torch import nn, Tensor
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
-from torchvision.transforms.functional import normalize
 
 
 class FunctionEstimator(nn.Module):
@@ -16,22 +15,32 @@ class FunctionEstimator(nn.Module):
     The time index is in both cases projected by the same linear Layer.
     """
 
-    def __init__(self, dim: int, num_head: int, num_layers: int, dim_feedforward: int) -> None:
+    def __init__(self, dim: int, num_head: int, num_layers: int, dim_feedforward: int, gaussian: bool = False) -> None:
         super().__init__()
+        self.gaussian = gaussian
+
         self.linear_indices = nn.Conv1d(1, dim // 2, 1)
+        self.linear_indices_2 = nn.Conv1d(1, dim // 2, 1)
         self.linear_value = nn.Conv1d(1, dim // 2, 1)
+
+        self.test_conv_1 = nn.Conv1d(dim, dim, 5, dilation=2, padding="same")
+        self.test_conv_2 = nn.Conv1d(dim, dim, 5, dilation=2, padding="same")
+        self.test_conv_3 = nn.Conv1d(dim, dim, 5, dilation=2, padding="same")
+
         self.bnorm = nn.BatchNorm1d(dim)
         self.encoder = TransformerEncoder(TransformerEncoderLayer(dim, num_head, dim_feedforward), num_layers)
-        self.instance_norm = nn.InstanceNorm1d(1)
 
         self.decoder = nn.Sequential(nn.Linear(dim // 2 + dim, (dim // 2 + dim) * 2, bias=True), nn.Tanh(),
-                                     nn.Linear((dim // 2 + dim) * 2, (dim // 2 + dim) * 2, bias=True), nn.Tanh(),
-                                     nn.Linear((dim // 2 + dim) * 2, (dim // 2 + dim) * 2, bias=True), nn.Tanh(),
-                                     nn.Linear((dim // 2 + dim) * 2, 1, bias=True))
+                                     nn.Linear((dim // 2 + dim) * 2, (dim // 2 + dim) * 4, bias=True), nn.Tanh(),
+                                     nn.Linear((dim // 2 + dim) * 4, (dim // 2 + dim) * 2, bias=True), nn.Tanh())
+        self.head = nn.Linear((dim // 2 + dim) * 2, 1, bias=True)
+        if gaussian:
+            self.var_head = nn.Linear((dim // 2 + dim) * 2, 1, bias=True)
+
         self.device = "cpu"
         self.hidden = None
 
-    def forward(self, input_indices: Tensor, values: Tensor, output_indices: Tensor) -> Tensor:
+    def forward(self, input_indices: Tensor, values: Tensor, output_indices: Tensor) -> Tuple[Tensor, Tensor]:
         """
         Args:
             input_indices: input time indices [B,1,L]
@@ -43,11 +52,17 @@ class FunctionEstimator(nn.Module):
         input_indices, output_indices, values = self.normalization(input_indices, output_indices, values)
         hidden = self.run_encoder(input_indices, values)
         result = []
+        result_var = []
         for i in range(output_indices.shape[-1]):
             output_index = torch.full((hidden.shape[0],), output_indices[..., i].item()).to(self.device)
-            output_index = torch.squeeze(self.linear_indices(output_index[:, None, None]))
-            result.append(self.decoder(torch.concat([hidden[..., 0], output_index], dim=-1)))
-        return torch.hstack(result)
+            output_index = torch.squeeze(self.linear_indices_2(output_index[:, None, None]))
+            decoder_output = self.decoder(torch.concat([hidden[..., 0], output_index], dim=-1))
+            result.append(self.head(decoder_output))
+            if self.gaussian:
+                result_var.append(self.var_head(decoder_output))
+        if self.gaussian:
+            return torch.hstack(result), torch.hstack(result_var)
+        return torch.hstack(result), torch.zeros((1,1))
 
     def normalization(self, input_indices: Tensor, output_indices: Tensor, values: Tensor) -> Tuple[
         Tensor, Tensor, Tensor]:
@@ -59,8 +74,8 @@ class FunctionEstimator(nn.Module):
         Normalize data.
         """
         input_indices = input_indices / len(output_indices)
-        mean, std = torch.mean(values, dim=-1), torch.std(values, dim=-1)
-        values = normalize(values, torch.squeeze(mean), torch.squeeze(std))
+        min_value, max_value = torch.min(values, dim=-1)[0], torch.max(values, dim=-1)[0]
+        values = ((values[:, 0, :] - min_value) / (max_value - min_value))[:, None, :]
         output_indices = output_indices / len(output_indices)
         return input_indices, output_indices, values
 
@@ -76,19 +91,19 @@ class FunctionEstimator(nn.Module):
         input_indices = self.linear_indices(input_indices)
         values = self.linear_value(values)
         input = torch.concat([input_indices, values], dim=-2)
-        input = self.bnorm(input)
+
         input = torch.permute(input, (0, 2, 1))  # encoder uses [B,L,C]
         hidden = self.encoder(input)
         hidden = torch.permute(hidden, (0, 2, 1))
         return hidden
 
-    def inference(self, output_index: Tensor) -> Tensor:
-        """
-        Args:
-            output_index: normalized index on which the function values should be computed [B,1]
-        Returns: function value [B,1]
-        """
-        assert self.hidden is not None, "Please run the encoder before inference."
-        output_index = torch.full((self.hidden.shape[0],), output_index.item()).to(self.device)
-        output_index = torch.squeeze(self.linear_indices(output_index[:, None, None]))
-        return self.decoder(torch.concat([torch.squeeze(self.hidden[..., -1:], dim=-1), output_index], dim=-1))
+    # def inference(self, output_index: Tensor) -> Tensor:
+    #     """
+    #     Args:
+    #         output_index: normalized index on which the function values should be computed [B,1]
+    #     Returns: function value [B,1]
+    #     """
+    #     assert self.hidden is not None, "Please run the encoder before inference."
+    #     output_index = torch.full((self.hidden.shape[0],), output_index.item()).to(self.device)
+    #     output_index = torch.squeeze(self.linear_indices_2(output_index[:, None, None]))
+    #     return self.decoder(torch.concat([torch.squeeze(self.hidden[..., -1:], dim=-1), output_index], dim=-1))

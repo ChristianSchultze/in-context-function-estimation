@@ -1,9 +1,8 @@
 import argparse
 import operator
-import os
 from multiprocessing import Process
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
 import torch
 import yaml
@@ -11,7 +10,6 @@ from lightning import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader
-from torchinfo import summary
 
 from icfelab.model import FunctionEstimator
 from icfelab.utils import plot_single_prediction
@@ -78,9 +76,9 @@ def train(args: argparse.Namespace, device_id: Union[int, str]) -> None:
     test_dataset = SampleDataset(getter(data))
 
     encoder_cfg = cfg["encoder"]
-    model = FunctionEstimator(encoder_cfg["dim"], encoder_cfg["num_head"], encoder_cfg["num_layers"], encoder_cfg["dim_feedforward"])
+    model = FunctionEstimator(encoder_cfg["dim"], encoder_cfg["num_head"], encoder_cfg["num_layers"], encoder_cfg["dim_feedforward"], gaussian=args.gaussian)
 
-    summary(model, input_size=((16, 1, 10),(16, 1, 10),(128,)), device="cpu")
+    # summary(model, input_size=((16, 1, 10),(16, 1, 10),(128,)), device="cpu")
     batch_size = cfg["training"]["batch_size"]
     eval_batch_size = cfg["eval"]["batch_size"]
 
@@ -151,7 +149,7 @@ def train(args: argparse.Namespace, device_id: Union[int, str]) -> None:
 
     if args.eval:
         model_path = cfg["eval"]["model_path"]
-        model = FunctionEstimator(encoder_cfg["dim"], encoder_cfg["num_head"], encoder_cfg["num_layers"], encoder_cfg["dim_feedforward"]).eval()
+        model = FunctionEstimator(encoder_cfg["dim"], encoder_cfg["num_head"], encoder_cfg["num_layers"], encoder_cfg["dim_feedforward"], gaussian=args.gaussian).eval()
         lit_model = TransformerTrainer.load_from_checkpoint(
             model_path, model=model, hyper_parameters=cfg["training"]
         )
@@ -199,6 +197,34 @@ def train(args: argparse.Namespace, device_id: Union[int, str]) -> None:
             hyper_parameters=cfg["training"]
         )
         trainer.test(lit_model, dataloaders=test_loader)
+
+        predict_dataset = SampleDataset(test_dataset.data[:64])
+        predict_loader = DataLoader(
+            predict_dataset,
+            batch_size=eval_batch_size,
+            shuffle=False,
+            drop_last=False,
+            collate_fn=collate_fn,
+            num_workers=args.num_workers,
+            prefetch_factor=2,
+            persistent_workers=True,
+        )
+
+        predictions = trainer.predict(lit_model, predict_loader)
+
+        number = 0
+        pred_plot_path = Path(f"data/{args.name}")
+        pred_plot_path.mkdir(parents=True, exist_ok=True)
+        for batch in predictions:
+            prediction = torch.squeeze(batch[0])
+            indices, values, target = batch[1]
+            indices = torch.squeeze(indices)
+            values = torch.squeeze(values)
+            target = torch.squeeze(target)
+
+            for i in range(len(prediction)):
+                plot_single_prediction(prediction[i], target[i], indices[i], values[i], pred_plot_path / f"{number}.png")
+                number += 1
 
 
 def get_args() -> argparse.Namespace:
@@ -257,6 +283,11 @@ def get_args() -> argparse.Namespace:
         type=int,
         default=1,
         help="If cuda is available, this determines the number of processes launched, each receiving a single gpu.",
+    )
+    parser.add_argument(
+        "--gaussian",
+        action="store_true",
+        help="If true, use gaussian nll loss for training.",
     )
     return parser.parse_args()
 

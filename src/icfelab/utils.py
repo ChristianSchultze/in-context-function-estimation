@@ -83,6 +83,7 @@ def plot_single_prediction(pred_data: Tensor, target_data: Tensor, indices: Tens
     plt.tight_layout()
 
     plt.savefig(path)
+    plt.close()
 
 def plot_test(target_data: Tensor, indices: Tensor, values: Tensor,
                            path: Path) -> None:
@@ -102,3 +103,4 @@ def plot_test(target_data: Tensor, indices: Tensor, values: Tensor,
     plt.tight_layout()
 
     plt.savefig(path)
+    plt.close()

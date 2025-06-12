@@ -4,13 +4,9 @@ from typing import Tuple, List
 
 import lightning
 import torch
-from torch import optim, Tensor
+from torch import optim, Tensor, nn
 from torch.nn import ConstantPad1d, TransformerEncoder
-from torch.nn.functional import mse_loss
 from torch.optim import Optimizer
-from torchvision.transforms.functional import normalize
-
-from icfelab.utils import plot_single_prediction, plot_test
 
 
 def collate_fn(batch: Tuple[List[torch.Tensor], ...]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -69,6 +65,8 @@ class TransformerTrainer(lightning.LightningModule):
         self.model = model
         self.batch_size = hyper_parameters["batch_size"]
         self.hyper_parameters = hyper_parameters
+        self.loss = nn.MSELoss()
+        self.gaussian = model.gaussian
 
     def training_step(self, batch: Tuple[Tensor, Tensor, Tensor]) -> torch.Tensor:
         self.model.train()
@@ -86,25 +84,23 @@ class TransformerTrainer(lightning.LightningModule):
         """
         self.model.device = self.device
 
-        # indices = torch.squeeze(indices).cpu()
-        # values = torch.squeeze(values).cpu()
-        # target = torch.squeeze(target).cpu()
-        #
-        # number = 0
-        # for i in range(len(indices)):
-        #     plot_test(target[i], indices[i], values[i], Path(f"data/debug/{number}.png"))
-        #     number += 1
-
         indices = indices.to(self.device)
         values = values.to(self.device)
         target = target.to(self.device)
-        target = self.model.instance_norm(target)
 
-        mean, std = torch.mean(values, dim=-1), torch.std(values, dim=-1)
-        target = normalize(target, torch.squeeze(mean), torch.squeeze(std))
-        pred = self.model(indices, values, torch.arange(target.shape[-1]).float())[None, None, :]
-        loss = mse_loss(pred, target)
-        return loss, pred
+        min_value, max_value = torch.min(values, dim=-1)[0], torch.max(values, dim=-1)[0]
+        pred_tuple = self.model(indices, values, torch.arange(target.shape[-1]).float())
+        if self.gaussian:
+            mean_pred, var_pred = pred_tuple
+            mean_pred = mean_pred * (max_value - min_value) + min_value
+            var_pred = torch.exp(var_pred) # model is supposed to predict the log variance for numerical stability
+            loss = 0.5 * torch.log(2*torch.pi * var_pred) + 0.5 * ((target-mean_pred)**2).mean()/var_pred
+            loss = loss.mean()
+        else:
+            pred = pred_tuple[0]
+            pred = pred * (max_value - min_value) + min_value
+            loss = torch.sqrt(self.loss(pred, target[:, 0, :]))
+        return loss, pred_tuple
 
     def validation_step(self, batch: Tuple[Tensor, Tensor, Tensor]) -> None:
         """Evaluate validation dataset"""
@@ -127,11 +123,15 @@ class TransformerTrainer(lightning.LightningModule):
         """Evaluate test dataset"""
         self.model.eval()
         indices, values, target = batch
-        mean, std = torch.mean(values, dim=-1), torch.std(values, dim=-1)
-        _, pred = self.run_model(indices, values, target)
-        target = normalize(target, torch.squeeze(mean), torch.squeeze(std))
-        values = normalize(values, torch.squeeze(mean), torch.squeeze(std))
-        batch = indices, values, target
+        _, pred_tuple = self.run_model(indices, values, target)
+
+        if self.gaussian:
+            mean_pred, var_pred = pred_tuple
+            std_pred = torch.exp(0.5 * var_pred)
+            pred = torch.normal(mean_pred, std_pred)
+        else:
+            pred = pred_tuple[0]
+
         return pred, batch
 
     def configure_optimizers(self) -> Optimizer:
