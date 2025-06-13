@@ -152,7 +152,7 @@ def plot_predictions(args: argparse.Namespace, lit_model: TransformerTrainer, pr
 
         for i, pred_data in enumerate(prediction):
             plot_single_prediction(pred_data, target[i], indices[i], values[i],
-                                   pred_plot_path / f"{number}.png")
+                                   pred_plot_path / f"{number}.pdf")
             number += 1
 
 

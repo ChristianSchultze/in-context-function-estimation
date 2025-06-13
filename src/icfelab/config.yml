@@ -1,6 +1,6 @@
 encoder: # transformer encoder config
     dim: 128
-    num_layers: 8
+    num_layers: 4
     num_head: 4
     dim_feedforward: 512
 training:

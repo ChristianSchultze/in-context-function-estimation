@@ -60,8 +60,8 @@ def generate_functions(number_functions: int, target_path: Path) -> None:
         result_list.append({"target": function.tolist(), "input": data, "rbf_scale": rbf_scale})
     # for i, result in enumerate(result_list):
     #     plot_test(torch.tensor(result["target"]), torch.tensor(result["input"]["indices"]),
-    #     torch.tensor(result["input"]["values"]), Path(f"data/generate/{i}.png"))
-    # plot_target(torch.tensor(result["target"]), Path(f"data/generate/{i}.png"))
+    #     torch.tensor(result["input"]["values"]), Path(f"data/generate/{i}.pdf"))
+    #     plot_target(torch.tensor(result["target"]), Path(f"data/generate/{i}.pdf"))
     save_compressed_json(result_list, target_path)
     # end = time.time()
     # print(f"gen+save took {end - start} seconds.")

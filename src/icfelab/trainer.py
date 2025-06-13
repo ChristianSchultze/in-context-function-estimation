@@ -103,17 +103,18 @@ class TransformerTrainer(lightning.LightningModule):
             target: target values
         Returns: loss value
         """
+        index = torch.randint(0, target.shape[-1], (1,))
         if self.gaussian:
             mean_pred, var_pred = pred_tuple
             mean_pred = mean_pred * (max_value - min_value) + min_value
             var_pred = torch.exp(var_pred)  # model is supposed to predict the log variance for numerical stability
-            loss = 0.5 * torch.log(2 * torch.pi * var_pred) + 0.5 * (
-                        (target[:, 0, :] - mean_pred) ** 2).mean() / var_pred
+            loss = 0.5 * torch.log(2 * torch.pi * var_pred[:, index]) + 0.5 * (
+                        (target[:, 0, index] - mean_pred[:, index]) ** 2).mean() / var_pred[:, index]
             loss = loss.mean()
         else:
             pred = pred_tuple[0]
             pred = pred * (max_value - min_value) + min_value
-            loss = torch.sqrt(self.loss(pred, target[:, 0, :]))
+            loss = torch.sqrt(self.loss(pred[:, index], target[:, 0, index]))
         return loss
 
     def validation_step(self, batch: Tuple[Tensor, Tensor, Tensor]) -> None:

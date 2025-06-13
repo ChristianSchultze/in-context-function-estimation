@@ -6,6 +6,38 @@ from torch import nn, Tensor
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
 
+class Decoder(nn.Module):
+    """Feedforward decoder"""
+
+    def __init__(self, dim: int) -> None:
+        super().__init__()
+        self.tanh = nn.Tanh()
+        self.linear_1 = nn.Linear(dim, dim * 2, bias=True)
+        self.linear_2 = nn.Linear(dim*2, dim * 2, bias=True)
+        self.lnorm_1 = nn.LayerNorm(dim * 2, eps=1e-6)
+        self.linear_3 = nn.Linear(dim * 2, dim * 2, bias=True)
+        self.lnorm_2 = nn.LayerNorm(dim * 2, eps=1e-6)
+        self.linear_4 = nn.Linear(dim * 2, 1, bias=True)
+
+    def forward(self, hidden: Tensor) -> Tensor:
+        """Implement fowrward pass with residual connections."""
+
+        hidden = self.linear_1(hidden)
+        residual = hidden.clone()
+
+        hidden = self.linear_2(hidden)
+        hidden = self.lnorm_1(hidden)
+
+        hidden = self.tanh(hidden + residual)
+
+        residual = hidden.clone()
+        hidden = self.linear_2(hidden)
+        hidden = self.lnorm_2(hidden)
+
+        hidden = self.tanh(hidden + residual)
+        return self.linear_4(hidden)
+
+
 class FunctionEstimator(nn.Module):
     """Function estimation model consisting out of a TranformerEncoder, as well as a Linear Layer generating new
     function values.
@@ -27,12 +59,13 @@ class FunctionEstimator(nn.Module):
         self.bnorm = nn.BatchNorm1d(dim)
         self.encoder = TransformerEncoder(TransformerEncoderLayer(dim, num_head, dim_feedforward), num_layers)
 
-        self.decoder = nn.Sequential(nn.Linear(dim // 2 + dim, (dim // 2 + dim) * 2, bias=True), nn.Tanh(),
-                                     nn.Linear((dim // 2 + dim) * 2, (dim // 2 + dim) * 4, bias=True), nn.Tanh(),
-                                     nn.Linear((dim // 2 + dim) * 4, (dim // 2 + dim) * 2, bias=True), nn.Tanh())
-        self.head = nn.Linear((dim // 2 + dim) * 2, 1, bias=True)
+        # self.decoder = nn.Sequential(nn.Linear(dim // 2 + dim, (dim // 2 + dim) * 2, bias=True), nn.Tanh(),
+        #                              nn.Linear((dim // 2 + dim) * 2, (dim // 2 + dim) * 4, bias=True), nn.Tanh(),
+        #                              nn.Linear((dim // 2 + dim) * 4, (dim // 2 + dim) * 2, bias=True), nn.Tanh())
+        # self.head = nn.Linear((dim // 2 + dim) * 2, 1, bias=True)
+        self.decoder = Decoder(dim // 2 + dim)
         if gaussian:
-            self.var_head = nn.Linear((dim // 2 + dim) * 2, 1, bias=True)
+            self.var_decoder = Decoder(dim // 2 + dim)
 
         self.device = "cpu"
         self.hidden = None
@@ -53,13 +86,13 @@ class FunctionEstimator(nn.Module):
         for i in range(output_indices.shape[-1]):
             output_index = torch.full((hidden.shape[0],), output_indices[..., i].item()).to(self.device)
             output_index = torch.squeeze(self.linear_indices_2(output_index[:, None, None]))
-            decoder_output = self.decoder(torch.concat([hidden[..., 0], output_index], dim=-1))
-            result.append(self.head(decoder_output))
+            decoder_output = self.decoder(torch.concat([hidden[..., -1], output_index], dim=-1))
+            result.append(decoder_output)
             if self.gaussian:
-                result_var.append(self.var_head(decoder_output))
+                result_var.append(self.var_decoder(torch.concat([hidden[..., -1], output_index], dim=-1)))
         if self.gaussian:
             return torch.hstack(result), torch.hstack(result_var)
-        return torch.hstack(result), torch.zeros((1,1))
+        return torch.hstack(result), torch.zeros((1, 1))
 
     def normalization(self, input_indices: Tensor, output_indices: Tensor, values: Tensor) -> Tuple[
         Tensor, Tensor, Tensor]:
