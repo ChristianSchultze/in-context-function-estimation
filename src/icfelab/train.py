@@ -2,6 +2,9 @@
 
 import argparse
 import operator
+import os
+import sys
+import time
 from multiprocessing import Process
 from pathlib import Path
 from typing import Union
@@ -32,6 +35,8 @@ def main() -> None:
     """Launch processes for each gpu if possible, otherwise call train directly."""
     args = get_args()
 
+    setup_logging(args)
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     print(f"Using {device} device")
@@ -48,6 +53,20 @@ def main() -> None:
     else:
         device_id = 0 if torch.cuda.is_available() else "cpu"
         train(args, device_id)
+
+
+def setup_logging(args):
+    log_path = Path(f"logs/cmd/{args.name}")
+    log_path.mkdir(parents=True, exist_ok=True)
+    start_time = time.time()
+    out_path = log_path / f"{start_time}.out"
+    err_path = log_path / f"{start_time}.err"
+    sys.stdout = open(out_path, "w", encoding="utf-8")
+    sys.stdout = open(err_path, "w", encoding="utf-8")
+    os.remove("latest.out")
+    os.remove("latest.err")
+    os.symlink(out_path, "latest.out")
+    os.symlink(err_path, "latest.err")
 
 
 def train(args: argparse.Namespace, device_id: Union[int, str]) -> None:
