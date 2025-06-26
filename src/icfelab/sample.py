@@ -7,11 +7,14 @@ from pathlib import Path
 from typing import Any, Tuple, Dict
 
 import numpy as np
+import torch
 from numpy import ndarray
 from scipy.stats import beta
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from tqdm import tqdm
+
+from icfelab.utils import plot_test, plot_gp
 
 
 def beta_sample_single_value(alpha: float = 1.0, beta_param: float = 10.0, scale: float = 1.0) -> float:
@@ -48,20 +51,35 @@ def generate_functions(number_functions: int, target_path: Path) -> None:
         number_functions: number of functions to generate.
         target_path: Path to the target file.
     """
+    grid_length = 128
     # start = time.time()
     result_list = []
-    for _ in tqdm(range(number_functions), desc="Generating functions", unit="functions"):
-        co_var, _, rbf_scale = create_covariance()
-        function = np.random.multivariate_normal(mean=np.zeros(co_var.shape[0]), cov=co_var, size=1).squeeze()
+    for i in tqdm(range(number_functions), desc="Generating functions", unit="functions"):
+        # co_var, _, rbf_kernel, rbf_scale = create_covariance(grid_length=grid_length)
+        # function = np.random.multivariate_normal(mean=np.zeros(co_var.shape[0]), cov=co_var, size=1).squeeze()
+        rbf_scale = 0
+        x_values = np.linspace(0, 1, 128)
+        function = x_values * (np.random.random() * 2 - 1) + np.random.random()
 
-        std = abs(np.random.normal(0, 0.1, 1).item())
+
         data = sample_random_observation_grids(function)
-        data["values"] = add_gaussian_noise(data["values"], 0, std)  # type: ignore
+
+        # std = abs(np.random.normal(0, 0.1, 1).item())
+        # data["values"] = add_gaussian_noise(data["values"], 0, std)  # type: ignore
+
+        # gp = GaussianProcessRegressor(kernel=rbf_kernel)
+        # gp.fit(np.array(data["indices"])[:, None], np.array(data["values"])[:, None])
+        # result, result_std = gp.predict(np.arange(grid_length)[:, None], return_std=True)
+
+        # plot_gp(torch.tensor(function.tolist()), torch.tensor(data["indices"]),
+        #           torch.tensor(data["values"]), Path(f"data/generate/{i}"), result, result_std)
+
         result_list.append({"target": function.tolist(), "input": data, "rbf_scale": rbf_scale})
+
     # for i, result in enumerate(result_list):
     #     plot_test(torch.tensor(result["target"]), torch.tensor(result["input"]["indices"]),
-    #     torch.tensor(result["input"]["values"]), Path(f"data/generate/{i}.pdf"))
-    #     plot_target(torch.tensor(result["target"]), Path(f"data/generate/{i}.pdf"))
+    #     torch.tensor(result["input"]["values"]), Path(f"data/generate/{i}"))
+        # plot_target(torch.tensor(result["target"]), Path(f"data/generate/{i}"))
     save_compressed_json(result_list, target_path)
     # end = time.time()
     # print(f"gen+save took {end - start} seconds.")
@@ -99,12 +117,12 @@ def save_compressed_json(serializable_object: Any, target_path: Path) -> None:
 
 
 def create_covariance(grid_length: int = 128, interval: tuple = (0, 1)) -> Tuple[
-    ndarray, ndarray, float]:
+    ndarray, ndarray, RBF, float]:
     """Create a Gaussian process with RBF kernel."""
     x = np.linspace(interval[0], interval[1], grid_length).reshape(-1, 1)
     rbf_scale = beta_sample_single_value()
     kernel = RBF(length_scale=rbf_scale)
-    return kernel(x), x, rbf_scale
+    return kernel(x), x, kernel, rbf_scale
 
 
 def get_args() -> argparse.Namespace:

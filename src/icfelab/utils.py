@@ -4,6 +4,7 @@ import lzma
 from multiprocessing import Process
 from pathlib import Path
 from typing import List, Tuple, Any
+# import tikzplotlib
 
 import torch
 import yaml
@@ -12,8 +13,9 @@ from matplotlib import pyplot as plt
 from torch import randperm, Tensor
 from tqdm import tqdm
 
+
 def run_processes(
-    processes: List[Process],
+        processes: List[Process],
 ) -> None:
     """
     Launches basic processes.
@@ -23,14 +25,16 @@ def run_processes(
     for process in tqdm(processes, desc="Waiting for processes to end"):
         process.join()
 
+
 def load_cfg(config_path: Path) -> dict:
     """Load yml config from supplied path."""
     with open(config_path, "r", encoding="utf-8") as file:
         cfg: dict = yaml.safe_load(file)
     return cfg
 
+
 def initialize_random_split(
-    size: int, ratio: Tuple[float, float, float]
+        size: int, ratio: Tuple[float, float, float]
 ) -> Tuple[list, Tuple[int, int]]:
     """
     Args:
@@ -44,9 +48,9 @@ def initialize_random_split(
     assert sum(ratio) == 1, "ratio does not sum up to 1."
     assert len(ratio) == 3, "ratio does not have length 3"
     assert (
-        int(ratio[0] * size) > 0
-        and int(ratio[1] * size) > 0
-        and int(ratio[2] * size) > 0
+            int(ratio[0] * size) > 0
+            and int(ratio[1] * size) > 0
+            and int(ratio[2] * size) > 0
     ), (
         "Dataset is to small for given split ratios for test and validation dataset. "
         "Test or validation dataset have size of zero."
@@ -68,6 +72,9 @@ def load_lzma_json_data(data_path: Path) -> Any:
 
 def plot_single_prediction(pred_data: Tensor, target_data: Tensor, indices: Tensor, values: Tensor, path: Path) -> None:
     """Plot predicted function with target and context points."""
+    # print(pred_data)
+    # print(target_data[0])
+    # print("next")
     x_data = torch.arange(len(pred_data)) / len(pred_data)
     indices = indices / len(pred_data)
     plt.figure(figsize=(8, 4))
@@ -83,11 +90,17 @@ def plot_single_prediction(pred_data: Tensor, target_data: Tensor, indices: Tens
     plt.legend()
     plt.tight_layout()
 
-    plt.savefig(path)
+    # fig = plt.gcf()
+    # # pylint: disable=assignment-from-no-return
+    # fig = tikzplotlib_fix_ncols(fig)
+    # tikzplotlib.save(path / ".tex")
+
+    plt.savefig(path.with_suffix(".pdf"))
     plt.close()
 
+
 def plot_test(target_data: Tensor, indices: Tensor, values: Tensor,
-                           path: Path) -> None:
+              path: Path) -> None:
     """Plot ground truth function with context points."""
     # pylint: disable=duplicate-code
     x_data = torch.arange(len(target_data)) / len(target_data)
@@ -96,7 +109,6 @@ def plot_test(target_data: Tensor, indices: Tensor, values: Tensor,
 
     plt.plot(x_data, target_data, label="target", color='blue')
     plt.scatter(indices, values, label="context points", color='green')
-    # plt.plot(x_data, pred_data, label="prediction", color='red')
 
     plt.title("")
     plt.xlabel("x")
@@ -105,8 +117,44 @@ def plot_test(target_data: Tensor, indices: Tensor, values: Tensor,
     plt.legend()
     plt.tight_layout()
 
-    plt.savefig(path)
+    # fig = plt.gcf()
+    # # pylint: disable=assignment-from-no-return
+    # fig = tikzplotlib_fix_ncols(fig)
+    # tikzplotlib.save(path / ".tex")
+
+    plt.savefig(path.with_suffix(".pdf"))
     plt.close()
+
+
+def plot_gp(target_data: Tensor, indices: Tensor, values: Tensor,
+              path: Path, gp_data: Tensor, gp_std: Tensor) -> None:
+    """Plot ground truth function with context points."""
+    # pylint: disable=duplicate-code
+    x_data = torch.arange(len(target_data)) / len(target_data)
+    indices = indices / len(target_data)
+    plt.figure(figsize=(8, 4))
+
+    plt.plot(x_data, gp_data, label="gp prediction", color='orange')
+    plt.fill_between(x_data, gp_data - gp_std, gp_data + gp_std, color="tab:orange", alpha=0.3)
+    plt.plot(x_data, target_data, label="target", color='blue')
+    plt.scatter(indices, values, label="context points", color='green')
+
+
+    plt.title("")
+    plt.xlabel("x")
+    plt.ylabel("f(x)")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+
+    # fig = plt.gcf()
+    # # pylint: disable=assignment-from-no-return
+    # fig = tikzplotlib_fix_ncols(fig)
+    # tikzplotlib.save(path / ".tex")
+
+    plt.savefig(path.with_suffix(".pdf"))
+    plt.close()
+
 
 def plot_target(target_data: Tensor, path: Path) -> None:
     """Plot ground truth function."""
@@ -123,5 +171,21 @@ def plot_target(target_data: Tensor, path: Path) -> None:
     plt.legend()
     plt.tight_layout()
 
-    plt.savefig(path)
+    # fig = plt.gcf()
+    # # pylint: disable=assignment-from-no-return
+    # fig = tikzplotlib_fix_ncols(fig)
+    # tikzplotlib.save(path / ".tex")
+
+    plt.savefig(path.with_suffix(".pdf"))
     plt.close()
+
+
+def tikzplotlib_fix_ncols(obj):
+    """
+    workaround for matplotlib 3.6 renamed legend's _ncol to _ncols, which breaks tikzplotlib
+    """
+    # pylint: disable=protected-access
+    if hasattr(obj, "_ncols"):  # type: ignore
+        obj._ncol = obj._ncols
+    for child in obj.get_children():
+        tikzplotlib_fix_ncols(child)

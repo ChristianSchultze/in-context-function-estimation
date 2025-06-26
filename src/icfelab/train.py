@@ -13,10 +13,10 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader, Dataset
 
-from icfelab.model import FunctionEstimator
-from icfelab.utils import plot_single_prediction
 from icfelab.dataset import SampleDataset
+from icfelab.model import FunctionEstimator
 from icfelab.trainer import TransformerTrainer, collate_fn
+from icfelab.utils import plot_single_prediction
 from icfelab.utils import run_processes, load_cfg, initialize_random_split, load_lzma_json_data
 
 
@@ -145,14 +145,14 @@ def plot_predictions(args: argparse.Namespace, lit_model: TransformerTrainer, pr
     pred_plot_path.mkdir(parents=True, exist_ok=True)
     for batch in predictions: # type: ignore
         prediction = torch.squeeze(batch[0])
-        indices, values, target = batch[1]
+        indices, values, target, _ = batch[1]
         indices = torch.squeeze(indices)
         values = torch.squeeze(values)
         target = torch.squeeze(target)
 
         for i, pred_data in enumerate(prediction):
             plot_single_prediction(pred_data, target[i], indices[i], values[i],
-                                   pred_plot_path / f"{number}.pdf")
+                                   pred_plot_path / f"{number}")
             number += 1
 
 
@@ -162,7 +162,7 @@ def evaluate(args: argparse.Namespace, cfg: dict, eval_batch_size: int, test_dat
     disk."""
     model_path = cfg["eval"]["model_path"]
     model = FunctionEstimator(cfg["encoder"]["dim"], cfg["encoder"]["num_head"], cfg["encoder"]["num_layers"],
-                              cfg["encoder"]["dim_feedforward"], gaussian=args.gaussian).eval()
+                              cfg["encoder"]["dim_feedforward"], gaussian=args.gaussian).train()
     # pylint: disable=no-value-for-parameter
     lit_model = TransformerTrainer.load_from_checkpoint(
         checkpoint_path=model_path, model=model, hyper_parameters=cfg["training"]
@@ -196,7 +196,7 @@ def init_training(args: argparse.Namespace) -> tuple:
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     test_dataset, train_dataset, validation_dataset = get_datasets(cfg, data_path)
     model = FunctionEstimator(cfg["encoder"]["dim"], cfg["encoder"]["num_head"], cfg["encoder"]["num_layers"],
-                              cfg["encoder"]["dim_feedforward"], gaussian=args.gaussian)
+                              cfg["encoder"]["dim_feedforward"], gaussian=args.gaussian).train()
     # summary(model, input_size=((16, 1, 10),(16, 1, 10),(128,)), device="cpu")
     batch_size = cfg["training"]["batch_size"]
     eval_batch_size = cfg["eval"]["batch_size"]
