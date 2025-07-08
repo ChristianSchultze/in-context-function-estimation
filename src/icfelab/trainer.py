@@ -113,7 +113,7 @@ class TransformerTrainer(lightning.LightningModule):
         else:
             pred = pred_tuple[0]
             # pred = self.model.normalizer.unnormalize(pred_tuple)
-            loss = torch.sqrt(mse_loss(pred, target[:, 0, :]))
+            loss = torch.sqrt(mse_loss(pred, target[:, :, 0]))
         return loss
 
     def validation_step(self, batch: Tuple[Tensor, Tensor, Tensor]) -> None:
