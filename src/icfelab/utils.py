@@ -160,7 +160,7 @@ def plot_gp(target_data: Tensor, indices: Tensor, values: Tensor,
     plt.close()
 
 
-def plot_full_data(pred_data: Tensor, target_data: Tensor, indices: Tensor, values: Tensor,
+def plot_full_data(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, indices: Tensor, values: Tensor,
               path: Path, gp_data: ndarray, gp_std: ndarray) -> None:
     """Plot targets and context points with gp and model predictions."""
     # pylint: disable=duplicate-code
@@ -173,6 +173,7 @@ def plot_full_data(pred_data: Tensor, target_data: Tensor, indices: Tensor, valu
     plt.plot(x_data, target_data, label="target", color='blue')
     plt.scatter(indices, values, label="context points", color='green')
     plt.plot(x_data, pred_data, label="prediction", color='red')
+    plt.fill_between(x_data, pred_data - pred_std, pred_data + pred_std, color="tab:red", alpha=0.3)
 
     plt.title("")
     plt.xlabel("x")
@@ -180,11 +181,6 @@ def plot_full_data(pred_data: Tensor, target_data: Tensor, indices: Tensor, valu
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
-
-    # fig = plt.gcf()
-    # # pylint: disable=assignment-from-no-return
-    # fig = tikzplotlib_fix_ncols(fig)
-    # tikzplotlib.save(path / ".tex")
 
     plt.savefig(path.with_suffix(".pdf"))
     plt.close()

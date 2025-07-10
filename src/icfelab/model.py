@@ -176,14 +176,13 @@ class FunctionEstimator(nn.Module):
         for i in range(output_indices.shape[-1]):
             output_index = torch.full((hidden.shape[0],), output_indices[i].item()).to(self.device)
             output_index = torch.squeeze(self.projector(output_index[:, None, None], self.device))
-            decoder_output = self.decoder(torch.concat([hidden[:, 0, :], output_index], dim=-1))
+            decoder_input = torch.concat([hidden[:, 0, :], output_index], dim=-1)
+            decoder_output = self.decoder(decoder_input)
             result.append(decoder_output)
-            # result.append(test_value)
-            # test_result.append(test_value_no_func)
-            # if self.gaussian:
-            # result_var.append(self.var_decoder(torch.concat([hidden[..., -1], output_index], dim=-1))) # todo: remove
-        # if self.gaussian:
-        #     return torch.hstack(result), torch.hstack(result_var)
+            if self.gaussian:
+                result_var.append(self.var_decoder(decoder_input))
+        if self.gaussian:
+            return torch.hstack(result), torch.hstack(result_var)
         return torch.hstack(result), torch.ones((1, 1))
 
     def run_encoder(self, input_indices: Tensor, values: Tensor) -> Tensor:

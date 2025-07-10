@@ -1,4 +1,5 @@
 """Module for training related functions and the lightning module for the training setting."""
+import math
 from typing import Tuple, List
 
 import lightning
@@ -28,7 +29,9 @@ def collate_fn(batch: Tuple[List[torch.Tensor], ...]) -> Tuple[torch.Tensor, tor
     padded_values = pad_data(values, max_length)  # type: ignore
     padding_mask = torch.arange(padded_values.shape[1])[None, :] < lengths[:, None]
 
-    return padded_input_indices[:, :, None], padded_values[:, :, None], torch.stack(target)[:, :, None], padding_mask[:, :, None]  # type: ignore
+    return padded_input_indices[:, :, None], padded_values[:, :, None], torch.stack(target)[:, :, None], padding_mask[:,
+                                                                                                         :,
+                                                                                                         None]  # type: ignore
 
 
 def pad_data(data: List[torch.Tensor], length: int) \
@@ -38,7 +41,7 @@ def pad_data(data: List[torch.Tensor], length: int) \
     target tensor with all data of this batch.
     """
     padded_data = []
-    for sequence in data: # TODO: do this loop in C or with torch?
+    for sequence in data:  # TODO: do this loop in C or with torch?
         if len(sequence) < length:
             transform = ConstantPad1d((0, length - len(sequence)), -0.5)
             padded_data.append(transform(sequence))
@@ -52,7 +55,7 @@ def get_length(data: List[Tensor]) -> Tensor:
     Determine maximum sequence length.
     """
     result = []
-    for sequence in data: # TODO: do this loop in C
+    for sequence in data:  # TODO: do this loop in C
         result.append(len(sequence))
     return torch.tensor(result)
 
@@ -73,10 +76,10 @@ class TransformerTrainer(lightning.LightningModule):
         loss, _ = self.run_model(*batch)
         self.log("train_loss", loss.detach().cpu(), batch_size=self.batch_size, prog_bar=True, on_epoch=True,
                  on_step=True)
-        # loss.backward()
         return loss
 
-    def run_model(self, indices: Tensor, values: Tensor, target: Tensor, mask: Tensor) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
+    def run_model(self, indices: Tensor, values: Tensor, target: Tensor, mask: Tensor) -> Tuple[
+        Tensor, Tuple[Tensor, Tensor]]:
         """
         Predict input image and calculate loss. The target is modified, so that it consists out of start token for
         the same length as the encoder result. Only after the encoder results have been processed, the actual output
@@ -102,14 +105,14 @@ class TransformerTrainer(lightning.LightningModule):
             target: target values [B,L,1]
         Returns: loss value
         """
-        index = torch.randint(0, target.shape[-1], (1,)).item()
         if self.gaussian:
-            mean_pred, var_pred = pred_tuple
-            # mean_pred = mean_pred * (max_value - min_value) + min_value
-            # var_pred = torch.exp(var_pred)  # model is supposed to predict the log variance for numerical stability
-            # loss = 0.5 * torch.log(2 * torch.pi * var_pred) + 0.5 * (
-            #             (target - mean_pred) ** 2).mean() / var_pred
-            # loss = loss.mean()
+            mean_pred, var_log_pred = pred_tuple
+            mean_pred = self.model.normalizer.unnormalize(mean_pred)
+            loss = (0.5 * math.log(2 * math.pi) + var_log_pred) + ((target[:, :, 0] - mean_pred) ** 2) / (
+                        2 * torch.exp(2 * var_log_pred))
+            loss = loss.mean()
+            if loss < 0:
+                print("now!")
         else:
             pred = pred_tuple[0]
             pred = self.model.normalizer.unnormalize(pred)
@@ -132,20 +135,22 @@ class TransformerTrainer(lightning.LightningModule):
         loss, _ = self.run_model(*batch)
         self.log(f"{name}_loss", loss.detach().cpu(), batch_size=self.batch_size, prog_bar=False)
 
-    def predict_step(self, batch: Tuple[Tensor, Tensor, Tensor]) -> Tuple[Tensor, Tuple[Tensor, Tensor, Tensor]]:
+    def predict_step(self, batch: Tuple[Tensor, Tensor, Tensor]) -> Tuple[
+        Tensor, Tuple[Tensor, Tensor, Tensor], Tensor]:
         """Evaluate test dataset"""
         self.model.eval()
         _, pred_tuple = self.run_model(*batch)
 
         if self.gaussian:
             mean_pred, var_pred = pred_tuple
-            std_pred = torch.exp(0.5 * var_pred)
-            pred = torch.normal(mean_pred, std_pred)
+            pred = self.model.normalizer.unnormalize(mean_pred)
+            std = torch.exp(var_pred)
         else:
             pred = pred_tuple[0]
             pred = self.model.normalizer.unnormalize(pred)
+            std = torch.zero_like(pred)
 
-        return pred, batch
+        return pred, batch, std
 
     def configure_optimizers(self) -> Optimizer:
         """Configure AdamW optimizer from config."""

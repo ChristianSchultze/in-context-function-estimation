@@ -18,9 +18,10 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from torch.utils.data import DataLoader, Dataset
+from torchsummary import summary
 
 from icfelab.dataset import SampleDataset
-from icfelab.model import FunctionEstimator
+from icfelab.model import FunctionEstimator, Normalizer
 from icfelab.trainer import TransformerTrainer, collate_fn
 from icfelab.utils import plot_single_prediction, create_covariance, plot_full_data
 from icfelab.utils import run_processes, load_cfg, initialize_random_split, load_lzma_json_data
@@ -109,7 +110,7 @@ def get_trainer(args: argparse.Namespace, checkpoint_callback: ModelCheckpoint, 
             callbacks=[checkpoint_callback],
             logger=logger,
             accelerator="gpu",
-            devices=[device_id], # type: ignore
+            devices=[device_id],  # type: ignore
             val_check_interval=0.5,
             limit_val_batches=0.5,
         )  # type: ignore
@@ -172,20 +173,22 @@ def plot_predictions(args: argparse.Namespace, lit_model: TransformerTrainer, pr
     """
     Unpack predicted batches and plot predicted functions.
     """
+    # todo: remove padding points
     predictions = trainer.predict(lit_model, predict_loader)
     number = 0
     pred_plot_path = Path(f"data/{args.name}")
     pred_plot_path.mkdir(parents=True, exist_ok=True)
-    for batch in predictions: # type: ignore
+    for batch in predictions:  # type: ignore
         prediction = torch.squeeze(batch[0])
         indices, values, target, _ = batch[1]
+        std = torch.squeeze(batch[2])
         indices = torch.squeeze(indices)
         values = torch.squeeze(values)
         target = torch.squeeze(target)
 
         for i, pred_data in enumerate(prediction):
-            plot_full_data(pred_data, target[i], indices[i], values[i], # type: ignore
-                                   pred_plot_path / f"{number}", gp_results[i][0], gp_results[i][1])
+            plot_full_data(pred_data, std[i], target[i], indices[i], values[i],  # type: ignore
+                           pred_plot_path / f"{number}", gp_results[i][0], gp_results[i][1])
             number += 1
 
 
@@ -230,7 +233,8 @@ def init_training(args: argparse.Namespace) -> tuple:
     test_dataset, train_dataset, validation_dataset = get_datasets(cfg, data_path)
     model = FunctionEstimator(cfg["encoder"]["dim"], cfg["encoder"]["num_head"], cfg["encoder"]["num_layers"],
                               cfg["encoder"]["dim_feedforward"], gaussian=args.gaussian).train()
-    # summary(model, input_size=((16, 1, 10),(16, 1, 10),(128,)), device="cpu")
+
+    # summary(model, input_size=[(16, 10, 1), (16, 10, 1), (128,)], device="cpu") does not work
     batch_size = cfg["training"]["batch_size"]
     eval_batch_size = cfg["eval"]["batch_size"]
     lit_model = TransformerTrainer(model, cfg["training"])
