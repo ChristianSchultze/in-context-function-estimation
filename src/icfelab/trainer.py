@@ -112,7 +112,7 @@ class TransformerTrainer(lightning.LightningModule):
             # loss = loss.mean()
         else:
             pred = pred_tuple[0]
-            # pred = self.model.normalizer.unnormalize(pred_tuple)
+            pred = self.model.normalizer.unnormalize(pred)
             loss = torch.sqrt(mse_loss(pred, target[:, :, 0]))
         return loss
 
@@ -143,7 +143,7 @@ class TransformerTrainer(lightning.LightningModule):
             pred = torch.normal(mean_pred, std_pred)
         else:
             pred = pred_tuple[0]
-            # pred = self.model.normalizer.unnormalize(pred_tuple)
+            pred = self.model.normalizer.unnormalize(pred)
 
         return pred, batch
 

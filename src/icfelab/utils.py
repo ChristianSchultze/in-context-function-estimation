@@ -4,11 +4,15 @@ import lzma
 from multiprocessing import Process
 from pathlib import Path
 from typing import List, Tuple, Any
+
+import numpy as np
 # import tikzplotlib
 
 import torch
 import yaml
 from matplotlib import pyplot as plt
+from numpy import ndarray
+from sklearn.gaussian_process.kernels import RBF
 # pylint: disable=no-name-in-module
 from torch import randperm, Tensor
 from tqdm import tqdm
@@ -156,6 +160,36 @@ def plot_gp(target_data: Tensor, indices: Tensor, values: Tensor,
     plt.close()
 
 
+def plot_full_data(pred_data: Tensor, target_data: Tensor, indices: Tensor, values: Tensor,
+              path: Path, gp_data: ndarray, gp_std: ndarray) -> None:
+    """Plot targets and context points with gp and model predictions."""
+    # pylint: disable=duplicate-code
+    x_data = torch.arange(len(target_data)) / len(target_data)
+    indices = indices / len(target_data)
+    plt.figure(figsize=(8, 4))
+
+    plt.plot(x_data, gp_data, label="gp prediction", color='orange')
+    plt.fill_between(x_data, gp_data - gp_std, gp_data + gp_std, color="tab:orange", alpha=0.3)
+    plt.plot(x_data, target_data, label="target", color='blue')
+    plt.scatter(indices, values, label="context points", color='green')
+    plt.plot(x_data, pred_data, label="prediction", color='red')
+
+    plt.title("")
+    plt.xlabel("x")
+    plt.ylabel("f(x)")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+
+    # fig = plt.gcf()
+    # # pylint: disable=assignment-from-no-return
+    # fig = tikzplotlib_fix_ncols(fig)
+    # tikzplotlib.save(path / ".tex")
+
+    plt.savefig(path.with_suffix(".pdf"))
+    plt.close()
+
+
 def plot_target(target_data: Tensor, path: Path) -> None:
     """Plot ground truth function."""
     # pylint: disable=duplicate-code
@@ -189,3 +223,11 @@ def tikzplotlib_fix_ncols(obj):
         obj._ncol = obj._ncols
     for child in obj.get_children():
         tikzplotlib_fix_ncols(child)
+
+
+def create_covariance(rbf_scale: float, grid_length: int = 128, interval: tuple = (0, 1)) -> Tuple[
+    ndarray, RBF]:
+    """Create a Gaussian process with RBF kernel."""
+    x = np.linspace(interval[0], interval[1], grid_length).reshape(-1, 1)
+    kernel = RBF(length_scale=rbf_scale)
+    return kernel(x), kernel

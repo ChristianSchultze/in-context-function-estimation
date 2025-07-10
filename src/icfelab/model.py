@@ -31,7 +31,7 @@ class Normalizer():
             data: 1D sequence data [B,L,1]"""
         min_look_up = self.substitute_padding_values(data, float("Inf"))
         max_look_up = self.substitute_padding_values(data, float("-Inf"))
-        return torch.min(min_look_up, dim=-1)[0], torch.max(max_look_up, dim=-1)[0]  # type:ignore
+        return torch.min(min_look_up, dim=-2)[0], torch.max(max_look_up, dim=-2)[0]  # type:ignore
 
     def substitute_padding_values(self, data: Tensor, value: float) -> Tensor:
         """Clone data and substitute padding values. This can be used to exclude padding values from min and max
@@ -168,7 +168,7 @@ class FunctionEstimator(nn.Module):
         """
         input_indices = index_normalization(input_indices, len(output_indices))
         output_indices = index_normalization(output_indices, len(output_indices))
-        # values = self.normalizer(values)
+        values = self.normalizer(values)
         hidden = self.run_encoder(input_indices, values)
 
         result = []
@@ -195,15 +195,12 @@ class FunctionEstimator(nn.Module):
         Returns:
             hidden representation of the input sequence [B,L,C]
         """
-        input_indices = torch.permute(input_indices, (0, 2, 1))
+        input_indices = torch.permute(input_indices, (0, 2, 1)) # conv1d uses [B,C,L]
         values = torch.permute(values, (0, 2, 1))
         input_indices = self.linear_indices(input_indices)
         values = self.linear_value(values)
         features = torch.permute(values, (0, 2, 1))
         input_indices_features = torch.permute(input_indices, (0, 2, 1))
-
-        # features = self.projector(values, self.device)
-        # input_indices_features = self.projector(input_indices, self.device)
 
         cls_tokens = self.cls_token.expand(features.shape[0], -1, -1)
         data = torch.concat([input_indices_features, features], dim=-1)
@@ -213,14 +210,3 @@ class FunctionEstimator(nn.Module):
         hidden = self.encoder(data)
         hidden = torch.permute(hidden, (1, 0, 2))
         return hidden
-
-    # def inference(self, output_index: Tensor) -> Tensor:
-    #     """
-    #     Args:
-    #         output_index: normalized index on which the function values should be computed [B,1]
-    #     Returns: function value [B,1]
-    #     """
-    #     assert self.hidden is not None, "Please run the encoder before inference."
-    #     output_index = torch.full((self.hidden.shape[0],), output_index.item()).to(self.device)
-    #     output_index = torch.squeeze(self.linear_indices_2(output_index[:, None, None]))
-    #     return self.decoder(torch.concat([torch.squeeze(self.hidden[..., -1:], dim=-1), output_index], dim=-1))

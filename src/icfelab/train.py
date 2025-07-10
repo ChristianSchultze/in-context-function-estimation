@@ -7,19 +7,22 @@ import sys
 import time
 from multiprocessing import Process
 from pathlib import Path
-from typing import Union
+from typing import Union, List, Tuple
 
+import numpy as np
 import torch
 import yaml
 from lightning import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF
 from torch.utils.data import DataLoader, Dataset
 
 from icfelab.dataset import SampleDataset
 from icfelab.model import FunctionEstimator
 from icfelab.trainer import TransformerTrainer, collate_fn
-from icfelab.utils import plot_single_prediction
+from icfelab.utils import plot_single_prediction, create_covariance, plot_full_data
 from icfelab.utils import run_processes, load_cfg, initialize_random_split, load_lzma_json_data
 
 
@@ -139,7 +142,18 @@ def eval_train(args: argparse.Namespace, cfg: dict, checkpoint_callback: ModelCh
         hyper_parameters=cfg["training"]
     )
     trainer.test(lit_model, dataloaders=test_loader)
+
+    gp_results = []
+    for function in test_loader.dataset.data:
+        # todo: normalize this as well?
+        data = function["input"]
+        rbf_kernel = RBF(length_scale=function["rbf_scale"])
+        gp = GaussianProcessRegressor(kernel=rbf_kernel, alpha=0.1 ** 2)
+        gp.fit(np.array(data["indices"])[:, None], np.array(data["values"])[:, None])
+        gp_results.append(gp.predict(np.arange(cfg["grid_length"])[:, None], return_std=True))
+
     predict_dataset = SampleDataset(test_dataset.data[:64])
+    predict_gp_results = gp_results[:64]
     predict_loader = DataLoader(
         predict_dataset,
         batch_size=eval_batch_size,
@@ -150,11 +164,11 @@ def eval_train(args: argparse.Namespace, cfg: dict, checkpoint_callback: ModelCh
         prefetch_factor=2,
         persistent_workers=True,
     )
-    plot_predictions(args, lit_model, predict_loader, trainer)
+    plot_predictions(args, lit_model, predict_loader, trainer, predict_gp_results)
 
 
 def plot_predictions(args: argparse.Namespace, lit_model: TransformerTrainer, predict_loader: DataLoader,
-                     trainer: Trainer) -> None:
+                     trainer: Trainer, gp_results: List[Tuple[np.ndarray, np.ndarray]]) -> None:
     """
     Unpack predicted batches and plot predicted functions.
     """
@@ -170,8 +184,8 @@ def plot_predictions(args: argparse.Namespace, lit_model: TransformerTrainer, pr
         target = torch.squeeze(target)
 
         for i, pred_data in enumerate(prediction):
-            plot_single_prediction(pred_data, target[i], indices[i], values[i],
-                                   pred_plot_path / f"{number}")
+            plot_full_data(pred_data, target[i], indices[i], values[i], # type: ignore
+                                   pred_plot_path / f"{number}", gp_results[i][0], gp_results[i][1])
             number += 1
 
 

@@ -9,8 +9,7 @@ from torch.utils.data import Dataset
 class SampleDataset(Dataset):
     """Dataset class for sampled functions. Sample contains at least 10 datapoints."""
 
-    def __init__(self, data: List[dict], augmentation: bool = False):
-        self.augmentation = augmentation
+    def __init__(self, data: List[dict]):
         self.data = data
 
     def __len__(self) -> int:
