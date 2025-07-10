@@ -41,7 +41,7 @@ def sample_gp_rbf(x: np.ndarray, gaussian_process: GaussianProcessRegressor) -> 
     Returns:
         ndarray: sampled function values.
         """
-    return gaussian_process.sample_y(x, n_samples=1).ravel()
+    return gaussian_process.sample_y(x, n_samples=1).ravel() # type: ignore
 
 
 def generate_functions(number_functions: int, target_path: Path) -> None:

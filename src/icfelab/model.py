@@ -192,7 +192,7 @@ class FunctionEstimator(nn.Module):
             values: function normalized values corresponding to the input indices [B,L,1]
 
         Returns:
-            hidden representation of the input sequence [B,L,1]
+            hidden representation of the input sequence [B,L,C]
         """
         # data = torch.permute(data, (0, 2, 1))
         # input_indices = self.linear_indices(input_indices)
@@ -204,7 +204,9 @@ class FunctionEstimator(nn.Module):
 
         data = torch.concat([input_indices_features, features], dim=-1)
 
+        data = torch.permute(data, (1, 0, 2))  # Vaswani et al. transformer uses [L,B,C]
         hidden = self.encoder(data)
+        hidden = torch.permute(hidden, (1, 0, 2))
         return hidden
 
     # def inference(self, output_index: Tensor) -> Tensor:
