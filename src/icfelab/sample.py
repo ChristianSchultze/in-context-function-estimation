@@ -17,7 +17,7 @@ from tqdm import tqdm
 from icfelab.utils import plot_test, plot_gp
 
 
-def beta_sample_single_value(alpha: float = 1.0, beta_param: float = 10.0, scale: float = 1.0) -> float:
+def beta_sample_single_value(alpha: float = 5.0, beta_param: float = 5.0, scale: float = 1.0) -> float:
     """
     Samples a length_scale from a Beta distribution and rescales it.
 
@@ -54,14 +54,12 @@ def generate_functions(number_functions: int, target_path: Path) -> None:
     grid_length = 128
     # start = time.time()
     result_list = []
-    for i in tqdm(range(number_functions), desc="Generating functions", unit="functions"):
-        # co_var, _, rbf_kernel, rbf_scale = create_covariance(grid_length=grid_length)
-        # function = np.random.multivariate_normal(mean=np.zeros(co_var.shape[0]), cov=co_var, size=1).squeeze()
+    for _ in tqdm(range(number_functions), desc="Generating functions", unit="functions"):
+        co_var, _, rbf_kernel, rbf_scale = create_covariance(grid_length=grid_length)
+        function = np.random.multivariate_normal(mean=np.zeros(co_var.shape[0]), cov=co_var, size=1).squeeze()
         rbf_scale = 0
-        x_values = np.linspace(0, 1, 128)
-        function = x_values * (np.random.random() * 2 - 1) + np.random.random()
-
-
+        # x_values = np.linspace(0, 1, 128)
+        # function = x_values * (np.random.random() * 2 - 1) + np.random.random()
         data = sample_random_observation_grids(function)
 
         # std = abs(np.random.normal(0, 0.1, 1).item())

@@ -1,12 +1,13 @@
 encoder: # transformer encoder config
-    dim: 128
-    num_layers: 4
-    num_head: 4
-    dim_feedforward: 512
+    dim: 64
+    num_layers: 2
+    num_head: 2
+    dim_feedforward: 128
 training:
     dataset_ratio: [0.8, 0.1, 0.1] # Ratio for train, val and test set.
-    learning_rate: 0.0001 # 1e-04
-    weight_decay: 0.00001 # 1e-05
+    learning_rate: 0.01 # 1e-04
+    weight_decay: 0.0001 # 1e-05
     batch_size: 64
+    padding_value: -0.5
 eval:
     batch_size: 64

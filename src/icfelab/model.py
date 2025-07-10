@@ -140,11 +140,12 @@ class FunctionEstimator(nn.Module):
         self.gaussian = gaussian
         self.dim = dim
 
-        # self.linear_indices = nn.Conv1d(1, dim // 2, 1)
-        # self.linear_indices_2 = nn.Conv1d(1, dim // 2, 1)
-        # self.linear_value = nn.Conv1d(1, dim // 2, 1)
+        self.linear_indices = nn.Conv1d(1, dim // 2, 1)
+        self.linear_indices_2 = nn.Conv1d(1, dim // 2, 1)
+        self.linear_value = nn.Conv1d(1, dim // 2, 1)
         self.projector = ZeroFeatureProjector(dim // 2)
         self.normalizer = None  # has to be initialized with current batch
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, self.dim))
 
         encoder_norm = LayerNorm(dim)
         self.encoder = TransformerEncoder(TransformerEncoderLayer(dim, num_head, dim_feedforward), num_layers,
@@ -194,15 +195,19 @@ class FunctionEstimator(nn.Module):
         Returns:
             hidden representation of the input sequence [B,L,C]
         """
-        # data = torch.permute(data, (0, 2, 1))
-        # input_indices = self.linear_indices(input_indices)
-        # values = self.linear_value(values)
-        # hidden = torch.permute(hidden, (0, 2, 1))
+        input_indices = torch.permute(input_indices, (0, 2, 1))
+        values = torch.permute(values, (0, 2, 1))
+        input_indices = self.linear_indices(input_indices)
+        values = self.linear_value(values)
+        features = torch.permute(values, (0, 2, 1))
+        input_indices_features = torch.permute(input_indices, (0, 2, 1))
 
-        features = self.projector(values, self.device)
-        input_indices_features = self.projector(input_indices, self.device)
+        # features = self.projector(values, self.device)
+        # input_indices_features = self.projector(input_indices, self.device)
 
+        cls_tokens = self.cls_token.expand(features.shape[0], -1, -1)
         data = torch.concat([input_indices_features, features], dim=-1)
+        data = torch.cat((cls_tokens, data), dim=-2)
 
         data = torch.permute(data, (1, 0, 2))  # Vaswani et al. transformer uses [L,B,C]
         hidden = self.encoder(data)
