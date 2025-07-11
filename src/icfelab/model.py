@@ -182,7 +182,7 @@ class FunctionEstimator(nn.Module):
             if self.gaussian:
                 result_var.append(self.var_decoder(decoder_input))
         if self.gaussian:
-            return torch.hstack(result), torch.hstack(result_var)
+            return torch.hstack(result), torch.clamp(torch.hstack(result_var), min=-10, max=10)
         return torch.hstack(result), torch.ones((1, 1))
 
     def run_encoder(self, input_indices: Tensor, values: Tensor) -> Tensor:
