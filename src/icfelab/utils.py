@@ -180,7 +180,7 @@ def plot_full_data(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, ind
     fig = plt.gcf()
     matplot2tikz.save(path.with_suffix(".tex"))
 
-    plt.savefig(path.with_suffix(".pdf"))
+    plt.savefig(path.with_suffix(".png"))
     plt.close()
 
 

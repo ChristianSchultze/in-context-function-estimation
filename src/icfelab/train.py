@@ -18,7 +18,6 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from torch.utils.data import DataLoader, Dataset
-from torchsummary import summary
 
 from icfelab.dataset import SampleDataset
 from icfelab.model import FunctionEstimator, Normalizer
@@ -39,7 +38,8 @@ def main() -> None:
     """Launch processes for each gpu if possible, otherwise call train directly."""
     args = get_args()
 
-    setup_logging(args)
+    if args.log_to_file:
+        setup_logging(args)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -67,8 +67,10 @@ def setup_logging(args):
     err_path = log_path / f"{start_time}.err"
     sys.stdout = open(out_path, "w", encoding="utf-8")
     sys.stdout = open(err_path, "w", encoding="utf-8")
-    os.remove("latest.out")
-    os.remove("latest.err")
+    if Path("latest.out").exists():
+        os.remove("latest.out")
+    if Path("latest.err").exists():
+        os.remove("latest.err")
     os.symlink(out_path, "latest.out")
     os.symlink(err_path, "latest.err")
 
@@ -230,7 +232,6 @@ def init_training(args: argparse.Namespace) -> tuple:
     model = FunctionEstimator(cfg["encoder"]["dim"], cfg["encoder"]["num_head"], cfg["encoder"]["num_layers"],
                               cfg["encoder"]["dim_feedforward"], gaussian=args.gaussian).train()
 
-    # summary(model, input_size=[(16, 10, 1), (16, 10, 1), (128,)], device="cpu") does not work
     batch_size = cfg["training"]["batch_size"]
     eval_batch_size = cfg["eval"]["batch_size"]
     lit_model = TransformerTrainer(model, cfg["training"])
@@ -356,6 +357,11 @@ def get_args() -> argparse.Namespace:
         "--full-eval",
         action="store_true",
         help="If true, use entire dataset for evaluation. Only active in eval mode.",
+    )
+    parser.add_argument(
+        "--log-to-file",
+        action="store_true",
+        help="If true, creates own err and out files for logging.",
     )
     return parser.parse_args()
 
