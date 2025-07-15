@@ -72,7 +72,6 @@ class Decoder(nn.Module):
         super().__init__()
         self.tanh = nn.Tanh()
         self.linear_1 = nn.Linear(dim, dim * 2, bias=True)
-        self.linear_2 = nn.Linear(dim * 2, dim * 2, bias=True)
         self.lnorm_1 = nn.LayerNorm(dim * 2, eps=1e-6)
         self.linear_3 = nn.Linear(dim * 2, dim * 2, bias=True)
         self.lnorm_2 = nn.LayerNorm(dim * 2, eps=1e-6)
@@ -82,15 +81,13 @@ class Decoder(nn.Module):
         """Implement fowrward pass with residual connections."""
 
         hidden = self.linear_1(hidden)
-        residual = hidden.clone()
 
-        hidden = self.linear_2(hidden)
         hidden = self.lnorm_1(hidden)
 
-        hidden = nn.Tanh()(hidden + residual)
+        hidden = nn.Tanh()(hidden)
 
         residual = hidden.clone()
-        hidden = self.linear_2(hidden)
+        hidden = self.linear_3(hidden)
         hidden = self.lnorm_2(hidden)
 
         hidden = nn.Tanh()(hidden + residual)

@@ -13,7 +13,7 @@ from scipy.stats import beta
 from sklearn.gaussian_process import GaussianProcessRegressor
 from tqdm import tqdm
 
-from icfelab.utils import plot_test, plot_gp, create_covariance
+from icfelab.utils import plot_test, create_covariance
 
 
 def beta_sample_single_value(alpha: float = 5.0, beta_param: float = 5.0, scale: float = 1.0) -> float:
@@ -40,46 +40,45 @@ def sample_gp_rbf(x: np.ndarray, gaussian_process: GaussianProcessRegressor) -> 
     Returns:
         ndarray: sampled function values.
         """
-    return gaussian_process.sample_y(x, n_samples=1).ravel() # type: ignore
+    return gaussian_process.sample_y(x, n_samples=1).ravel()  # type: ignore
 
 
-def generate_functions(number_functions: int, target_path: Path) -> None:
+def generate_functions(args: argparse.Namespace) -> None:
     """Generate a number of functions and draw random samples of at least length 10 from all function points.
     Add gaussian noise to the sampled data with a random sampled std for each function.
     Args:
         number_functions: number of functions to generate.
         target_path: Path to the target file.
     """
+    number_functions, target_path = args.number_functions, Path(args.target_file)
     grid_length = 128
     result_list = []
     for _ in tqdm(range(number_functions), desc="Generating functions", unit="functions"):
-        rbf_scale = beta_sample_single_value()
-        _, rbf_kernel = create_covariance(rbf_scale, grid_length=grid_length)
+        rbf_scale = beta_sample_single_value(args.alpha, args.beta)
+        co_var, rbf_kernel = create_covariance(rbf_scale, grid_length=grid_length)
         function = np.random.multivariate_normal(mean=np.zeros(co_var.shape[0]), cov=co_var, size=1).squeeze()
-        data = sample_random_observation_grids(function)
+        data = sample_random_observation_grids(function, args.max, args.min)
 
         std = abs(np.random.normal(0, 0.1, 1).item())
         data["values"] = add_gaussian_noise(data["values"], 0, std)  # type: ignore
 
-        result_list.append({"target": function.tolist(), "input": data, "rbf_scale": rbf_scale})
+        result_list.append({"target": function.tolist(), "input": data, "rbf_scale": rbf_scale, "std": std})
 
     if args.plot:
         for i, result in enumerate(result_list):
             plot_test(torch.tensor(result["target"]), torch.tensor(result["input"]["indices"]),
-            torch.tensor(result["input"]["values"]), Path(f"data/generate/{i}"))
+                      torch.tensor(result["input"]["values"]), Path(f"data/generate/{i}"))
     save_compressed_json(result_list, target_path)
 
 
-def sample_random_observation_grids(function: np.ndarray) -> Dict[str, list]:
+def sample_random_observation_grids(function: np.ndarray, max: int, min: int) -> Dict[str, list]:
     """Generate random grids to select a random number of points from this function."""
     function_size = len(function)
     indices = np.arange(function_size)
-    random_grid = np.random.randint(low=0, high=2, size=function_size).astype(bool)
-    number_of_samples = np.sum(random_grid).item()
-    if number_of_samples < 10:
-        additional_samples = np.random.randint(low=0, high=function_size, size=10 - number_of_samples)
-        random_grid[additional_samples] = True
-    return {"values": function[random_grid].tolist(), "indices": indices[random_grid].tolist()}
+    number_of_points = np.random.randint(min, max + 1)
+    random_grid = np.random.choice(indices, size=number_of_points, replace=False)
+    random_grid.sort()
+    return {"values": function[random_grid].tolist(), "indices": random_grid.tolist()}
 
 
 def add_gaussian_noise(data: list, mean: float, std: float) -> ndarray:
@@ -130,10 +129,34 @@ def get_args() -> argparse.Namespace:
         help="Plot sampled functions additionally to saving them. This is for debugging purposes, as it takes a lot "
              "of time for large amounts of data."
     )
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=1,
+        help="Beta distribution parameter for gaussian kernel scale."
+    )
+    parser.add_argument(
+        "--beta",
+        type=float,
+        default=1,
+        help="Beta distribution parameter for gaussian kernel scale."
+    )
+    parser.add_argument(
+        "--max",
+        type=int,
+        default=50,
+        help="Maximum number of samples in the observation grid."
+    )
+    parser.add_argument(
+        "--min",
+        type=int,
+        default=5,
+        help="Minimum number of samples in the observation grid"
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     # todo: load grid length from config
     args = get_args()
-    generate_functions(args.number_functions, Path(args.target_file))
+    generate_functions(args)

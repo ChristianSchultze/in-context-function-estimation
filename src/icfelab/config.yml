@@ -11,4 +11,4 @@ training:
     batch_size: 256
     padding_value: -0.5
 eval:
-    batch_size: 256
+    batch_size: 64

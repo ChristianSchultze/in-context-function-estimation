@@ -73,13 +73,15 @@ class TransformerTrainer(lightning.LightningModule):
 
     def training_step(self, batch: Tuple[Tensor, Tensor, Tensor]) -> torch.Tensor:
         self.model.train()
-        loss, _ = self.run_model(*batch)
-        self.log("train_loss", loss.detach().cpu(), batch_size=self.batch_size, prog_bar=True, on_epoch=True,
+        loss, secondary_loss, _ = self.run_model(*batch)
+        if not self.gaussian:
+            secondary_loss = loss
+        self.log("train_loss", secondary_loss.detach().cpu(), batch_size=self.batch_size, prog_bar=True, on_epoch=True,
                  on_step=True)
         return loss
 
     def run_model(self, indices: Tensor, values: Tensor, target: Tensor, mask: Tensor) -> Tuple[
-        Tensor, Tuple[Tensor, Tensor]]:
+        Tensor, Tensor, Tuple[Tensor, Tensor]]:
         """
         Predict input image and calculate loss. The target is modified, so that it consists out of start token for
         the same length as the encoder result. Only after the encoder results have been processed, the actual output
@@ -93,28 +95,32 @@ class TransformerTrainer(lightning.LightningModule):
         target = target.to(self.device)
 
         pred_tuple = self.model(indices, values, torch.arange(target.shape[-2]).float())
-        loss = self.calculate_loss(pred_tuple, target)
-        return loss, pred_tuple
+        loss, secondary_loss = self.calculate_loss(pred_tuple, target)
+        return loss, secondary_loss, pred_tuple
 
-    def calculate_loss(self, pred_tuple: Tensor, target: Tensor) -> Tensor:
+    def calculate_loss(self, pred_tuple: Tensor, target: Tensor) -> Tuple[Tensor]:
         """
         Calculate gaussian nll loss if gaussian mode and rmse loss otherwise.
         Args:
             pred_tuple: if gaussian mode is activated the tuple contains mean and variance prediction.
             Otherwise the first element contains the desired output value.
             target: target values [B,L,1]
-        Returns: loss value
+        Returns: main loss value, as well as secondary loss for validation in gaussian training
         """
+        loss = self.calculate_rmse(pred_tuple[0], target)
+        secondary_loss = torch.zeros_like(loss)
         if self.gaussian:
+            secondary_loss = loss
             mean_pred, var_log_pred = pred_tuple
             mean_pred = self.model.normalizer.unnormalize(mean_pred)
             loss = 0.5 * (math.log(2 * math.pi) + var_log_pred + (
                                       (target[:, :, 0] - mean_pred) ** 2 + 1e-5) / torch.exp(var_log_pred)) + 1e-6
             loss = torch.mean(loss)
-        else:
-            pred = pred_tuple[0]
-            pred = self.model.normalizer.unnormalize(pred)
-            loss = torch.sqrt(mse_loss(pred, target[:, :, 0]))
+        return loss, secondary_loss
+
+    def calculate_rmse(self, pred: Tensor, target: Tensor) -> Tensor:
+        pred = self.model.normalizer.unnormalize(pred)
+        loss = torch.sqrt(mse_loss(pred, target[:, :, 0]))
         return loss
 
     def validation_step(self, batch: Tuple[Tensor, Tensor, Tensor]) -> None:
@@ -130,14 +136,16 @@ class TransformerTrainer(lightning.LightningModule):
     def evaluate_prediction(self, batch: Tuple[Tensor, Tensor, Tensor], name: str) -> None:
         """Evaluate input batch and log with supplied name tag.
         Predicts model, converts output tokens to text and calculates levenshtein distance."""
-        loss, _ = self.run_model(*batch)
+        loss, secondary_loss, _ = self.run_model(*batch)
+        if self.gaussian:
+            loss = secondary_loss
         self.log(f"{name}_loss", loss.detach().cpu(), batch_size=self.batch_size, prog_bar=False)
 
     def predict_step(self, batch: Tuple[Tensor, Tensor, Tensor]) -> Tuple[
         Tensor, Tuple[Tensor, Tensor, Tensor], Tensor]:
         """Evaluate test dataset"""
         self.model.eval()
-        _, pred_tuple = self.run_model(*batch)
+        _, _, pred_tuple = self.run_model(*batch)
 
         if self.gaussian:
             mean_pred, var_pred = pred_tuple
