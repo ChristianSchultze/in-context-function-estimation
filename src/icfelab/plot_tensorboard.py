@@ -14,7 +14,8 @@ TAGS = ['train_loss_epoch',
 
 
 # RUNS = [['bender_train_B/0/version_0']]
-RUNS = [['bender_train_A/0/version_0']]
+# RUNS = [['bender_train_A/0/version_0']]
+RUNS = [['bender_train_A/0/version_0'], ['bender_train_B/0/version_0']]
 
 plt.rcParams["figure.figsize"] = (30, 20)
 plt.rcParams["font.size"] = 35
@@ -79,6 +80,16 @@ def set_xticks(steps, epochs=EPOCHS[0][0].astype(int)):
     plt.xticks(np.append(np.arange(0, number_steps, step_per_epoch * epoch_tiks)[:-1], steps[0][-1] + 1),
                np.arange(0, number_epochs + 1, epoch_tiks))
 
+def set_xticks_multiple(steps, epochs=EPOCHS[0][0].astype(int)):
+    """Arange x ticks so that the units is epochs and not steps. Calculates step per value based on last epoch and
+    last step. This only works if this does not change throughout training and versions."""
+    number_epochs = epochs[-1]
+    number_steps = steps[-1]
+    step_per_epoch = number_steps // number_epochs
+    epoch_tiks = 50
+    plt.xticks(np.append(np.arange(0, number_steps, step_per_epoch * epoch_tiks)[:-1], steps[-1] + 1),
+               np.arange(0, number_epochs + 1, epoch_tiks))
+
 def plot(steps, data, main_color, background_color, title, labels, tiks_name, ylabel, legend):
     """Plots timeseries with error bands"""
 
@@ -88,6 +99,28 @@ def plot(steps, data, main_color, background_color, title, labels, tiks_name, yl
 
     # set_xticks(steps, epochs)
     set_xticks(steps[0])
+
+    plt.xlabel('Epochs')
+    plt.ylabel(ylabel)
+    plt.grid()
+    plt.legend(loc=legend)
+
+    plt.savefig(f"{tiks_name}.png")
+    fig = plt.gcf()
+    matplot2tikz.clean_figure()
+    matplot2tikz.save(f"{tiks_name}.tex")
+    plt.clf()
+    # plt.show()
+
+def plot_multiple(steps, data, main_color, background_color, title, labels, tiks_name, ylabel, legend):
+    """Plots timeseries with error bands"""
+
+    for index, timeseries in enumerate(data):
+        plt.plot(steps[index], timeseries.squeeze(), color=main_color[index], label=labels[index])
+    plt.title(title)
+
+    # set_xticks(steps, epochs)
+    set_xticks_multiple(steps[0])
 
     plt.xlabel('Epochs')
     plt.ylabel(ylabel)
@@ -111,22 +144,31 @@ def train_val_loss():
     steps, data = get_timeseries('val_loss')
     step_list.append(steps)
     data_list.append(data)
-    title = "Model A (2,10)"
-    tiks_name = "final_loss"
+    title = "Model B (2,5)"
+    tiks_name = "final_loss_B"
     ylabel = "Loss"
     legend = "upper right"
 
     return step_list, data_list, title, tiks_name, ylabel, legend
 
+def val_loss_only():
+    steps, data = get_timeseries('val_loss')
+    title = "Val loss comparison"
+    tiks_name = "final_val_loss"
+    ylabel = "RMSE Loss"
+    legend = "upper right"
+
+    return steps, data, title, tiks_name, ylabel, legend
+
 
 def graph():
-    main_labels = ['train loss', 'val loss']
-    main_color = ['tab:orange', 'tab:blue', 'tab:green', 'tab:red', 'tab:purple']
-    background_color = ['peachpuff', 'lightsteelblue', 'palegreen', 'tab:red', 'tab:purple']
+    main_labels = ['Model A (2,10)', 'Model B (2,5)']
+    main_color = ['tab:green', 'tab:purple']
+    background_color = ['palegreen', 'tab:purple']
 
-    steps, data, title, tiks_name, ylabel, legend = train_val_loss()
+    steps, data, title, tiks_name, ylabel, legend = val_loss_only()
 
-    plot(steps, data, main_color, background_color, title, main_labels, tiks_name, ylabel, legend)
+    plot_multiple(steps, data, main_color, background_color, title, main_labels, tiks_name, ylabel, legend)
 
 
 if __name__ == "__main__":
