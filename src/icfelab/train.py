@@ -17,6 +17,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
+from torch.nn.functional import mse_loss
 from torch.utils.data import DataLoader, Dataset
 
 from icfelab.dataset import SampleDataset
@@ -135,7 +136,7 @@ def eval_train(args: argparse.Namespace, cfg: dict, checkpoint_callback: ModelCh
     """
     Evaluate model on test dataset and plot a few predicted functions.
     """
-    cfg["eval"]["model_path"] = checkpoint_callback.best_model_path
+    cfg["eval"]["model_path"] = Path(checkpoint_callback.best_model_path).name
     with open(ckpt_dir / "model.yml", "w", encoding="utf-8") as file:
         yaml.safe_dump(cfg, file)
     # pylint: disable=no-value-for-parameter
@@ -153,14 +154,18 @@ def eval_train(args: argparse.Namespace, cfg: dict, checkpoint_callback: ModelCh
 def prepare_predictions(args, cfg, eval_batch_size, lit_model, test_dataset, test_loader, trainer):
     gp_results = []
     rbf_scales = []
+    loss_values = []
     for function in test_loader.dataset.data:
         # todo: normalize this as well?
         data = function["input"]
         rbf_scales.append(function["rbf_scale"])
-        rbf_kernel = RBF(length_scale=function["rbf_scale"])
-        gp = GaussianProcessRegressor(kernel=rbf_kernel, alpha=0.1)
-        gp.fit(np.array(data["indices"])[:, None], np.array(data["values"])[:, None])
-        gp_results.append(gp.predict(np.arange(cfg["grid_length"])[:, None], return_std=True))
+        # rbf_kernel = RBF(length_scale=function["rbf_scale"])
+        # gp = GaussianProcessRegressor(kernel=rbf_kernel, alpha=0.1)
+        # gp.fit(np.array(data["indices"])[:, None], np.array(data["values"])[:, None])
+        # gp_results.append(gp.predict(np.arange(cfg["grid_length"])[:, None], return_std=True))
+        gp_results.append((data["indices"], data["values"]))
+    #     loss_values.append(torch.sqrt(mse_loss(torch.tensor(gp_results[-1][0]), torch.tensor(function["target"])))) # todo do this all properly
+    # print("GP RMSE", torch.tensor(loss_values).mean())
     predict_dataset = SampleDataset(test_dataset.data[:64])
     predict_gp_results = gp_results[:64]
     predict_loader = DataLoader(
@@ -203,7 +208,7 @@ def evaluate(args: argparse.Namespace, cfg: dict, eval_batch_size: int, test_dat
              trainer: Trainer) -> None:
     """Evaluate model on test dataset and plot a few predicted functions. This function loads the model directly from
     disk."""
-    model_path = cfg["eval"]["model_path"]
+    model_path = Path(args.eval) / cfg["eval"]["model_path"]
     model = FunctionEstimator(cfg["encoder"]["dim"], cfg["encoder"]["num_head"], cfg["encoder"]["num_layers"],
                               cfg["encoder"]["dim_feedforward"], gaussian=args.gaussian).train()
     # pylint: disable=no-value-for-parameter

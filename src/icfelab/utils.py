@@ -163,8 +163,8 @@ def plot_full_data(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, ind
     indices = indices / len(target_data)
     plt.figure(figsize=(8, 4))
 
-    plt.plot(x_data, gp_data, label="gp prediction", color='orange')
-    plt.fill_between(x_data, gp_data - gp_std, gp_data + gp_std, color="tab:orange", alpha=0.3)
+    # plt.plot(x_data, gp_data, label="gp prediction", color='orange')
+    # plt.fill_between(x_data, gp_data - gp_std, gp_data + gp_std, color="tab:orange", alpha=0.3)
     plt.plot(x_data, target_data, label="target", color='blue')
     plt.scatter(indices, values, label="context points", color='green')
     plt.plot(x_data, pred_data, label="prediction", color='red')
@@ -178,6 +178,7 @@ def plot_full_data(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, ind
     plt.tight_layout()
 
     fig = plt.gcf()
+    matplot2tikz.clean_figure()
     matplot2tikz.save(path.with_suffix(".tex"))
 
     plt.savefig(path.with_suffix(".png"))
