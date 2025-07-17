@@ -114,7 +114,7 @@ class TransformerTrainer(lightning.LightningModule):
             mean_pred, var_log_pred = pred_tuple
             mean_pred = self.model.normalizer.unnormalize(mean_pred)
             loss = 0.5 * (math.log(2 * math.pi) + var_log_pred + (
-                                      (target[:, :, 0] - mean_pred) ** 2 + 1e-5) / torch.exp(var_log_pred)) + 1e-6
+                                      (target[:, :, 0] - mean_pred) ** 2) / torch.exp(var_log_pred) + 1e-6)
             loss = torch.mean(loss)
         return loss, secondary_loss
 

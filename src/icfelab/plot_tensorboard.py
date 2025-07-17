@@ -15,7 +15,7 @@ TAGS = ['train_loss_epoch',
 
 # RUNS = [['bender_train_B/0/version_0']]
 # RUNS = [['bender_train_A/0/version_0']]
-RUNS = [['bender_train_A/0/version_0'], ['bender_train_B/0/version_0']]
+RUNS = [['bender_train_A\\0\\version_0'], ['bender_train_A-small\\0\\version_0'], ['bender_train_A-large\\0\\version_0']]
 
 plt.rcParams["figure.figsize"] = (30, 20)
 plt.rcParams["font.size"] = 35
@@ -115,8 +115,11 @@ def plot(steps, data, main_color, background_color, title, labels, tiks_name, yl
 def plot_multiple(steps, data, main_color, background_color, title, labels, tiks_name, ylabel, legend):
     """Plots timeseries with error bands"""
 
+    fig, ax = plt.subplots()
+
     for index, timeseries in enumerate(data):
-        plt.plot(steps[index], timeseries.squeeze(), color=main_color[index], label=labels[index])
+        timeseries[timeseries>2] = 2
+        ax.plot(steps[index], timeseries.squeeze(), color=main_color[index], label=labels[index])
     plt.title(title)
 
     # set_xticks(steps, epochs)
@@ -124,8 +127,9 @@ def plot_multiple(steps, data, main_color, background_color, title, labels, tiks
 
     plt.xlabel('Epochs')
     plt.ylabel(ylabel)
-    plt.grid()
-    plt.legend(loc=legend)
+    ax.grid()
+    ax.legend(loc=legend)
+    ax.set_ylim(0, 2.1)
 
     plt.savefig(f"{tiks_name}.png")
     fig = plt.gcf()
@@ -153,7 +157,7 @@ def train_val_loss():
 
 def val_loss_only():
     steps, data = get_timeseries('val_loss')
-    title = "Val loss comparison"
+    title = "Learnrate comparison"
     tiks_name = "final_val_loss"
     ylabel = "RMSE Loss"
     legend = "upper right"
@@ -162,9 +166,11 @@ def val_loss_only():
 
 
 def graph():
-    main_labels = ['Model A (2,10)', 'Model B (2,5)']
-    main_color = ['tab:green', 'tab:purple']
-    background_color = ['palegreen', 'tab:purple']
+    main_labels = ['LR 0.0001', 'LR 0.1']
+    # main_color = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
+    # background_color = ['lightsteelblue', 'peachpuff', 'palegreen', 'tab:red', 'tab:purple']
+    main_color = ['tab:green', 'tab:blue', 'tab:orange']
+    background_color = ['palegreen', 'lightsteelblue', 'peachpuff']
 
     steps, data, title, tiks_name, ylabel, legend = val_loss_only()
 
