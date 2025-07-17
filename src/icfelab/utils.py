@@ -4,6 +4,7 @@ import lzma
 from multiprocessing import Process
 from pathlib import Path
 from typing import List, Tuple, Any
+import pandas as pd
 
 import numpy as np
 import matplot2tikz
@@ -95,6 +96,29 @@ def plot_single_prediction(pred_data: Tensor, target_data: Tensor, indices: Tens
     plt.tight_layout()
 
     plt.savefig(path.with_suffix(".pdf"))
+    plt.close()
+
+
+def plot_raw(indices: Tensor, values: Tensor,
+              path: Path) -> None:
+    """Plot ground truth function with context points."""
+    # pylint: disable=duplicate-code
+    plt.figure(figsize=(8, 4))
+
+    plt.scatter(indices*24, values, label="observations", color='green')
+
+    plt.title("")
+    plt.xlabel("hours")
+    plt.ylabel("flux")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+
+    fig = plt.gcf()
+    matplot2tikz.clean_figure()
+    matplot2tikz.save(path.with_suffix(".tex"))
+
+    plt.savefig(path.with_suffix(".png"))
     plt.close()
 
 
@@ -226,3 +250,25 @@ def create_covariance(rbf_scale: float, grid_length: int = 128, interval: tuple 
     x = np.linspace(interval[0], interval[1], grid_length).reshape(-1, 1)
     kernel = RBF(length_scale=rbf_scale)
     return kernel(x), kernel
+
+
+def read_cepheid():
+    # Replace with your actual filename
+    filename = "cepheid_data.csv"
+
+    # Read the file as whitespace-delimited (space/tab)
+    # There are 7 columns, so we map them all
+    column_names = ['COL1', 'COL2', 'COL3', 'COL4', 'COL5', 'COL6', 'COL7']
+    df = pd.read_csv(filename,
+                     delim_whitespace=True,
+                     header=None,
+                     names=column_names)
+
+    # Extract COL1 (serial number) and COL6 (detrended flux)
+    selected_df = df[['COL2', 'COL3']]
+
+    # Convert to torch tensor
+    tensor = torch.tensor(selected_df.values, dtype=torch.float32)
+    tensor[:,0] = tensor[:,0] - tensor[:,0][0]
+
+    return tensor
