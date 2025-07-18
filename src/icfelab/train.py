@@ -166,9 +166,9 @@ def prepare_predictions(args, cfg, eval_batch_size, lit_model, test_dataset, tes
         gp_results.append((data["indices"], data["values"]))
     #     loss_values.append(torch.sqrt(mse_loss(torch.tensor(gp_results[-1][0]), torch.tensor(function["target"])))) # todo do this all properly
     # print("GP RMSE", torch.tensor(loss_values).mean())
-    print(torch.tensor(rbf_scales).mean())
-    predict_dataset = SampleDataset(test_dataset.data[:64])
-    predict_gp_results = gp_results[:64]
+    print(torch.tensor(rbf_scales, dtype=torch.float).mean())
+    predict_dataset = SampleDataset(test_dataset.data[:12])
+    predict_gp_results = gp_results[:12]
     predict_loader = DataLoader(
         predict_dataset,
         batch_size=eval_batch_size,

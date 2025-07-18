@@ -94,13 +94,13 @@ class Decoder(nn.Module):
         return self.linear_4(hidden)
 
 
-def index_normalization(indices: Tensor, length: int) -> Tensor:
+def index_normalization(indices: Tensor, scale: float) -> Tensor:
     """
-    Normalize index data according to length.
+    Normalize index data according to scale value.
     Args:
         indices: 1d sequence indices [B,L,1]
     """
-    indices = indices / length
+    indices = indices / scale
     return indices
 
 
@@ -163,6 +163,9 @@ class FunctionEstimator(nn.Module):
         Return:
             Estimated function values [B,L,1]
         """
+        # input_indices = (input_indices.squeeze() - input_indices[:, 0, :])
+        # input_indices = (input_indices / input_indices[:, -1, None])[:, :, None] # cepheid normalization
+
         input_indices = index_normalization(input_indices, len(output_indices))
         output_indices = index_normalization(output_indices, len(output_indices))
         values = self.normalizer(values)
@@ -191,7 +194,7 @@ class FunctionEstimator(nn.Module):
         Returns:
             hidden representation of the input sequence [B,L,C]
         """
-        input_indices = torch.permute(input_indices, (0, 2, 1)) # conv1d uses [B,C,L]
+        input_indices = torch.permute(input_indices, (0, 2, 1))  # conv1d uses [B,C,L]
         values = torch.permute(values, (0, 2, 1))
         input_indices = self.linear_indices(input_indices)
         values = self.linear_value(values)

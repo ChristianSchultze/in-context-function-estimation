@@ -185,6 +185,9 @@ def plot_full_data(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, ind
     # pylint: disable=duplicate-code
     x_data = torch.arange(len(target_data)) / len(target_data)
     indices = indices / len(target_data)
+
+    # indices = indices * 24
+    # x_data = np.linspace(indices[0], indices[-1], 128) # cepheid normalisation
     plt.figure(figsize=(8, 4))
 
     # plt.plot(x_data, gp_data, label="gp prediction", color='orange')

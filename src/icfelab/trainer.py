@@ -150,7 +150,8 @@ class TransformerTrainer(lightning.LightningModule):
         if self.gaussian:
             mean_pred, var_pred = pred_tuple
             pred = self.model.normalizer.unnormalize(mean_pred)
-            std = torch.sqrt(torch.exp(var_pred))
+            # std = torch.sqrt(torch.exp(var_pred))
+            std = self.model.normalizer.difference * torch.sqrt(torch.exp(var_pred))
         else:
             pred = pred_tuple[0]
             pred = self.model.normalizer.unnormalize(pred)
