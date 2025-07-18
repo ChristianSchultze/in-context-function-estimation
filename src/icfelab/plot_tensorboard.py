@@ -15,7 +15,7 @@ TAGS = ['train_loss_epoch',
 
 # RUNS = [['bender_train_B/0/version_0']]
 # RUNS = [['bender_train_A/0/version_0']]
-RUNS = [['bender_train_A\\0\\version_0'], ['bender_train_A-small\\0\\version_0'], ['bender_train_A-large\\0\\version_0']]
+RUNS = [['bender_train_A\\0\\version_0'], ['bender_train_A-small\\0\\version_0'], ['bender_train_A-large\\0\\version_1']]
 
 plt.rcParams["figure.figsize"] = (30, 20)
 plt.rcParams["font.size"] = 35
@@ -129,7 +129,7 @@ def plot_multiple(steps, data, main_color, background_color, title, labels, tiks
     plt.ylabel(ylabel)
     ax.grid()
     ax.legend(loc=legend)
-    ax.set_ylim(0, 2.1)
+    ax.set_ylim(0, 1.25)
 
     plt.savefig(f"{tiks_name}.png")
     fig = plt.gcf()
@@ -158,7 +158,7 @@ def train_val_loss():
 def val_loss_only():
     steps, data = get_timeseries('val_loss')
     title = "Learnrate comparison"
-    tiks_name = "final_val_loss"
+    tiks_name = "final_dim"
     ylabel = "RMSE Loss"
     legend = "upper right"
 
@@ -166,7 +166,7 @@ def val_loss_only():
 
 
 def graph():
-    main_labels = ['LR 0.0001', 'LR 0.1']
+    main_labels = ['256', '128', '512']
     # main_color = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
     # background_color = ['lightsteelblue', 'peachpuff', 'palegreen', 'tab:red', 'tab:purple']
     main_color = ['tab:green', 'tab:blue', 'tab:orange']
