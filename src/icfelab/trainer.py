@@ -76,7 +76,9 @@ class TransformerTrainer(lightning.LightningModule):
         loss, secondary_loss, _ = self.run_model(*batch)
         if not self.gaussian:
             secondary_loss = loss
-        self.log("train_loss", secondary_loss.detach().cpu(), batch_size=self.batch_size, prog_bar=True, on_epoch=True,
+        self.log("train_loss", secondary_loss.detach().cpu(), batch_size=self.batch_size, prog_bar=False, on_epoch=True,
+                 on_step=True)
+        self.log("train_nll_loss", loss.detach().cpu(), batch_size=self.batch_size, prog_bar=True, on_epoch=True,
                  on_step=True)
         return loss
 
@@ -112,7 +114,7 @@ class TransformerTrainer(lightning.LightningModule):
         if self.gaussian:
             secondary_loss = loss
             mean_pred, var_log_pred = pred_tuple
-            mean_pred = self.model.normalizer.unnormalize(mean_pred)
+            target = self.model.normalizer(target)
             loss = 0.5 * (math.log(2 * math.pi) + var_log_pred + (
                                       (target[:, :, 0] - mean_pred) ** 2) / torch.exp(var_log_pred) + 1e-6)
             loss = torch.mean(loss)
@@ -140,6 +142,7 @@ class TransformerTrainer(lightning.LightningModule):
         if self.gaussian:
             loss = secondary_loss
         self.log(f"{name}_loss", loss.detach().cpu(), batch_size=self.batch_size, prog_bar=False)
+        self.log(f"{name}_nll_loss", secondary_loss.detach().cpu(), batch_size=self.batch_size, prog_bar=False)
 
     def predict_step(self, batch: Tuple[Tensor, Tensor, Tensor]) -> Tuple[
         Tensor, Tuple[Tensor, Tensor, Tensor], Tensor]:

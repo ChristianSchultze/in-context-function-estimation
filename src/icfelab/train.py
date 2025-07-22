@@ -83,7 +83,7 @@ def train(args: argparse.Namespace, device_id: Union[int, str]) -> None:
 
     checkpoint_callback = ModelCheckpoint(
         save_top_k=1,
-        monitor="val_loss",
+        monitor="val_nll_loss",
         dirpath=ckpt_dir,
         filename=f"{device_id}-{{epoch}}",
     )
