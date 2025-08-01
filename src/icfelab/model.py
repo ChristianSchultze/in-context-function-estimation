@@ -43,7 +43,7 @@ class Normalizer():
         result[self.is_padding] = value
         return result
 
-    def __call__(self, data: Tensor) -> Tensor:
+    def __call__(self, data: Tensor, padding: bool = True) -> Tensor:
         """
         Args:
             data: 1D sequence data [B,L,1]
@@ -51,7 +51,8 @@ class Normalizer():
         Returns:1D sequence data [B,L,1]
         """
         values = ((data[:, :, 0] - self.min_values) / (self.difference))[:, :, None]
-        values[self.is_padding] = self.padding_value
+        if padding:
+            values[self.is_padding] = self.padding_value
         return values
 
     def unnormalize(self, data: Tensor) -> Tensor:

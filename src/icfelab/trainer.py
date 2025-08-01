@@ -114,7 +114,7 @@ class TransformerTrainer(lightning.LightningModule):
         if self.gaussian:
             secondary_loss = loss
             mean_pred, var_log_pred = pred_tuple
-            target = self.model.normalizer(target)
+            target = self.model.normalizer(target, padding=False)
             loss = 0.5 * (math.log(2 * math.pi) + var_log_pred + (
                                       (target[:, :, 0] - mean_pred) ** 2) / torch.exp(var_log_pred) + 1e-6)
             loss = torch.mean(loss)
