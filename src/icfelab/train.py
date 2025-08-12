@@ -15,15 +15,12 @@ import yaml
 from lightning import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
-from torch.nn.functional import mse_loss
 from torch.utils.data import DataLoader, Dataset
 
 from icfelab.dataset import SampleDataset
-from icfelab.model import FunctionEstimator, Normalizer
+from icfelab.model import FunctionEstimator
 from icfelab.trainer import TransformerTrainer, collate_fn
-from icfelab.utils import plot_single_prediction, create_covariance, plot_full_data
+from icfelab.utils import plot_full_data
 from icfelab.utils import run_processes, load_cfg, initialize_random_split, load_lzma_json_data
 
 
@@ -339,7 +336,7 @@ def get_args() -> argparse.Namespace:
         "--eval",
         type=str,
         default=None,
-        help="If a model path is provided, this will execute the test run on said model, using the provided config file.",
+        help="If a model path (path to folder) is provided, this will execute the test run on said model, using the provided config file.",
     )
     parser.add_argument(
         "--config_path",

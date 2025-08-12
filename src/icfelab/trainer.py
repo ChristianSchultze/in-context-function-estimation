@@ -98,6 +98,7 @@ class TransformerTrainer(lightning.LightningModule):
 
         pred_tuple = self.model(indices, values, torch.arange(target.shape[-2]).float())
         loss, secondary_loss = self.calculate_loss(pred_tuple, target)
+
         return loss, secondary_loss, pred_tuple
 
     def calculate_loss(self, pred_tuple: Tensor, target: Tensor) -> Tuple[Tensor]:
@@ -118,6 +119,10 @@ class TransformerTrainer(lightning.LightningModule):
             loss = 0.5 * (math.log(2 * math.pi) + var_log_pred + (
                                       (target[:, :, 0] - mean_pred) ** 2) / torch.exp(var_log_pred) + 1e-6)
             loss = torch.mean(loss)
+
+            std = torch.mean(self.model.normalizer.difference * torch.sqrt(torch.exp(var_log_pred))) # log mean std
+            print(std.detach().cpu().item())
+
         return loss, secondary_loss
 
     def calculate_rmse(self, pred: Tensor, target: Tensor) -> Tensor:
@@ -140,7 +145,9 @@ class TransformerTrainer(lightning.LightningModule):
         Predicts model, converts output tokens to text and calculates levenshtein distance."""
         loss, secondary_loss, _ = self.run_model(*batch)
         if self.gaussian:
+            temp = loss
             loss = secondary_loss
+            secondary_loss = temp
         self.log(f"{name}_loss", loss.detach().cpu(), batch_size=self.batch_size, prog_bar=False)
         self.log(f"{name}_nll_loss", secondary_loss.detach().cpu(), batch_size=self.batch_size, prog_bar=False)
 

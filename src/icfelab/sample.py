@@ -4,7 +4,7 @@ import argparse
 import json
 import lzma
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
 import torch
@@ -53,11 +53,24 @@ def generate_functions(args: argparse.Namespace) -> None:
     number_functions, target_path = args.number_functions, Path(args.target_file)
     grid_length = 128
     result_list = []
-    for _ in tqdm(range(number_functions), desc="Generating functions", unit="functions"):
+    sample_size_list = []
+    if args.load_sample_sizes is not None:
+        with lzma.open(args.load_sample_sizes, "rb") as file:
+            sample_sizes = json.loads(file.read().decode("utf-8"))
+        assert (
+                    len(sample_sizes) >= number_functions), (f"Too few sample size parameters provided. Number of "
+                                                             f"functions to generate: {number_functions}, length of "
+                                                             f"sample size list: {len(sample_sizes)}")
+
+    for i in tqdm(range(number_functions), desc="Generating functions", unit="functions"):
         rbf_scale = beta_sample_single_value(args.alpha, args.beta)
         co_var, rbf_kernel = create_covariance(rbf_scale, grid_length=grid_length)
         function = np.random.multivariate_normal(mean=np.zeros(co_var.shape[0]), cov=co_var, size=1).squeeze()
-        data = sample_random_observation_grids(function, args.max, args.min)
+        if args.load_sample_sizes:
+            data = sample_random_observation_grids(function, args.max, args.min, sample_sizes[i])
+        else:
+            data = sample_random_observation_grids(function, args.max, args.min)
+        sample_size_list.append(len(data["values"]))
 
         std = abs(np.random.normal(0, 0.1, 1).item())
         data["values"] = add_gaussian_noise(data["values"], 0, std)  # type: ignore
@@ -69,13 +82,18 @@ def generate_functions(args: argparse.Namespace) -> None:
             plot_test(torch.tensor(result["target"]), torch.tensor(result["input"]["indices"]),
                       torch.tensor(result["input"]["values"]), Path(f"data/generate/{i}"))
     save_compressed_json(result_list, target_path)
+    if args.load_sample_sizes is None:
+        save_compressed_json(sample_size_list, Path("data/sample_sizes.lzma"))
 
 
-def sample_random_observation_grids(function: np.ndarray, max: int, min: int) -> Dict[str, list]:
+def sample_random_observation_grids(function: np.ndarray, max: int, min: int, sample_size: Optional[int] = None) -> Dict[str, list]:
     """Generate random grids to select a random number of points from this function."""
     function_size = len(function)
     indices = np.arange(function_size)
-    number_of_points = np.random.randint(min, max + 1)
+    if sample_size is None:
+        number_of_points = np.random.randint(min, max + 1)
+    else:
+        number_of_points = sample_size
     random_grid = np.random.choice(indices, size=number_of_points, replace=False)
     random_grid.sort()
     return {"values": function[random_grid].tolist(), "indices": random_grid.tolist()}
@@ -128,6 +146,13 @@ def get_args() -> argparse.Namespace:
         action="store_true",
         help="Plot sampled functions additionally to saving them. This is for debugging purposes, as it takes a lot "
              "of time for large amounts of data."
+    )
+    parser.add_argument(
+        "--load-sample-sizes",
+        type=str,
+        default=None,
+        help="If this contains a path, activates samples size loading. Amound of samples per function will not be random but loaded from "
+             "a lzma compressed json file."
     )
     parser.add_argument(
         "--alpha",
