@@ -179,6 +179,32 @@ def plot_gp(target_data: Tensor, indices: Tensor, values: Tensor,
     plt.close()
 
 
+def plot_cepheid(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, indices: Tensor, values: Tensor,
+              path: Path, gp_data: ndarray, gp_std: ndarray, rbf_scale: float) -> None:
+    """Plot targets and context points with gp and model predictions."""
+    # pylint: disable=duplicate-code
+    indices = indices * 24
+    x_data = np.linspace(indices[0], indices[-1], 128) # cepheid normalisation
+    plt.figure(figsize=(8, 4))
+
+    plt.scatter(indices, values, label="context points", color='green')
+    plt.plot(x_data, pred_data, label="prediction", color='red')
+    plt.fill_between(x_data, pred_data - pred_std, pred_data + pred_std, color="tab:red", alpha=0.3)
+
+    plt.xlabel("Hours")
+    plt.ylabel("Flux")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+
+    fig = plt.gcf()
+    matplot2tikz.clean_figure()
+    matplot2tikz.save(path.with_suffix(".tex"))
+
+    plt.savefig(path.with_suffix(".png"))
+    plt.close()
+
+
 def plot_full_data(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, indices: Tensor, values: Tensor,
               path: Path, gp_data: ndarray, gp_std: ndarray, rbf_scale: float) -> None:
     """Plot targets and context points with gp and model predictions."""
@@ -186,8 +212,6 @@ def plot_full_data(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, ind
     x_data = torch.arange(len(target_data)) / len(target_data)
     indices = indices / len(target_data)
 
-    # indices = indices * 24
-    # x_data = np.linspace(indices[0], indices[-1], 128) # cepheid normalisation
     plt.figure(figsize=(8, 4))
 
     # plt.plot(x_data, gp_data, label="gp prediction", color='orange')
@@ -198,8 +222,8 @@ def plot_full_data(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, ind
     plt.fill_between(x_data, pred_data - pred_std, pred_data + pred_std, color="tab:red", alpha=0.3)
 
     plt.title(f"RBF Scale: {round(rbf_scale, 2)}")
-    plt.xlabel("x")
-    plt.ylabel("f(x)")
+    plt.xlabel("hours")
+    plt.ylabel("flux")
     plt.grid(True)
     plt.legend()
     plt.tight_layout()

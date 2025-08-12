@@ -23,6 +23,8 @@ from icfelab.trainer import TransformerTrainer, collate_fn
 from icfelab.utils import plot_full_data
 from icfelab.utils import run_processes, load_cfg, initialize_random_split, load_lzma_json_data
 
+from src.icfelab.utils import plot_cepheid
+
 
 def run_multiple_gpus(args: argparse.Namespace) -> None:
     """Launch a process for each gpu."""
@@ -140,7 +142,8 @@ def eval_train(args: argparse.Namespace, cfg: dict, checkpoint_callback: ModelCh
     lit_model = TransformerTrainer.load_from_checkpoint(
         checkpoint_path=checkpoint_callback.best_model_path,
         model=model,
-        hyper_parameters=cfg["training"]
+        hyper_parameters=cfg["training"],
+        real_data=args.real_data
     )
     print()
     trainer.test(lit_model, dataloaders=test_loader)
@@ -184,6 +187,7 @@ def plot_predictions(args: argparse.Namespace, lit_model: TransformerTrainer, pr
     Unpack predicted batches and plot predicted functions.
     """
     # todo: remove padding points
+    plot_function = plot_cepheid if args.real_data else plot_full_data
     predictions = trainer.predict(lit_model, predict_loader)
     number = 0
     pred_plot_path = Path(f"data/{args.name}")
@@ -197,7 +201,7 @@ def plot_predictions(args: argparse.Namespace, lit_model: TransformerTrainer, pr
         target = torch.squeeze(target)
 
         for i, pred_data in enumerate(prediction):
-            plot_full_data(pred_data, std[i], target[i], indices[i], values[i],  # type: ignore
+            plot_function(pred_data, std[i], target[i], indices[i], values[i],  # type: ignore
                            pred_plot_path / f"{number}", gp_results[i][0], gp_results[i][1], rbf_scales[i])
             number += 1
 
@@ -211,7 +215,7 @@ def evaluate(args: argparse.Namespace, cfg: dict, eval_batch_size: int, test_dat
                               cfg["encoder"]["dim_feedforward"], gaussian=args.gaussian).train()
     # pylint: disable=no-value-for-parameter
     lit_model = TransformerTrainer.load_from_checkpoint(
-        checkpoint_path=model_path, model=model, hyper_parameters=cfg["training"]
+        checkpoint_path=model_path, model=model, hyper_parameters=cfg["training"], real_data=args.real_data
     )
     trainer.test(lit_model, dataloaders=test_loader)
     prepare_predictions(args, cfg, eval_batch_size, lit_model, test_dataset, test_loader, trainer)
@@ -237,7 +241,7 @@ def init_training(args: argparse.Namespace) -> tuple:
 
     batch_size = cfg["training"]["batch_size"]
     eval_batch_size = cfg["eval"]["batch_size"]
-    lit_model = TransformerTrainer(model, cfg["training"])
+    lit_model = TransformerTrainer(model, cfg["training"], args.real_data)
     train_loader, val_loader = None, None
     if not args.eval:
         train_loader = DataLoader(
@@ -364,7 +368,12 @@ def get_args() -> argparse.Namespace:
     parser.add_argument(
         "--log-to-file",
         action="store_true",
-        help="If true, creates own err and out files for logging.",
+        help="If activated, creates own err and out files for logging.",
+    )
+    parser.add_argument(
+        "--real_data",
+        action="store_true",
+        help="If activated, normalization is modified and Cepheid plotting function is used.",
     )
     return parser.parse_args()
 

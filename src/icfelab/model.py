@@ -137,6 +137,7 @@ class FunctionEstimator(nn.Module):
         super().__init__()
         self.gaussian = gaussian
         self.dim = dim
+        self.real_data = False
 
         self.linear_indices = nn.Conv1d(1, dim // 2, 1)
         self.linear_indices_2 = nn.Conv1d(1, dim // 2, 1)
@@ -164,10 +165,12 @@ class FunctionEstimator(nn.Module):
         Return:
             Estimated function values [B,L,1]
         """
-        # input_indices = (input_indices.squeeze() - input_indices[:, 0, :])
-        # input_indices = (input_indices / input_indices[:, -1, None])[:, :, None] # cepheid normalization
+        if self.real_data: # todo: unify this.
+            input_indices = (input_indices.squeeze() - input_indices[:, 0, :])
+            input_indices = (input_indices / input_indices[:, -1, None])[:, :, None] # cepheid normalization
+        else:
+            input_indices = index_normalization(input_indices, len(output_indices))
 
-        input_indices = index_normalization(input_indices, len(output_indices))
         output_indices = index_normalization(output_indices, len(output_indices))
         values = self.normalizer(values)
         hidden = self.run_encoder(input_indices, values)
