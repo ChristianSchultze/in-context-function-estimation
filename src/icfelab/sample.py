@@ -44,7 +44,7 @@ def sample_gp_rbf(x: np.ndarray, gaussian_process: GaussianProcessRegressor) -> 
 
 
 def generate_functions(args: argparse.Namespace) -> None:
-    """Generate a number of functions and draw random samples of at least length 10 from all function points.
+    """Generate a number of functions and draw random samples from all function points.
     Add gaussian noise to the sampled data with a random sampled std for each function.
     Args:
         number_functions: number of functions to generate.
