@@ -140,6 +140,8 @@ def plot_test(target_data: Tensor, indices: Tensor, values: Tensor,
     plt.legend()
     plt.tight_layout()
 
+    path.parent.mkdir(parents=True, exist_ok=True)
+
     # fig = plt.gcf()
     # # pylint: disable=assignment-from-no-return
     # fig = tikzplotlib_fix_ncols(fig)
@@ -150,7 +152,7 @@ def plot_test(target_data: Tensor, indices: Tensor, values: Tensor,
 
 
 def plot_gp(target_data: Tensor, indices: Tensor, values: Tensor,
-              path: Path, gp_data: Tensor, gp_std: Tensor) -> None:
+              path: Path, gp_data: Tensor, gp_std: Tensor, rbf_scale: float) -> None:
     """Plot ground truth function with context points."""
     # pylint: disable=duplicate-code
     x_data = torch.arange(len(target_data)) / len(target_data)
@@ -162,20 +164,20 @@ def plot_gp(target_data: Tensor, indices: Tensor, values: Tensor,
     plt.plot(x_data, target_data, label="target", color='blue')
     plt.scatter(indices, values, label="context points", color='green')
 
-
-    plt.title("")
+    plt.title(f"RBF-Scale: {round(rbf_scale, 2)}")
     plt.xlabel("x")
     plt.ylabel("f(x)")
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
 
-    # fig = plt.gcf()
-    # # pylint: disable=assignment-from-no-return
-    # fig = tikzplotlib_fix_ncols(fig)
-    # tikzplotlib.save(path / ".tex")
+    path.parent.mkdir(parents=True, exist_ok=True)
 
-    plt.savefig(path.with_suffix(".pdf"))
+    fig = plt.gcf()
+    matplot2tikz.clean_figure()
+    matplot2tikz.save(path.with_suffix(".tex"))
+
+    plt.savefig(path.with_suffix(".png"))
     plt.close()
 
 
@@ -196,6 +198,8 @@ def plot_cepheid(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, indic
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
+
+    path.parent.mkdir(parents=True, exist_ok=True)
 
     fig = plt.gcf()
     matplot2tikz.clean_figure()
@@ -228,6 +232,8 @@ def plot_full_data(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, ind
     plt.legend()
     plt.tight_layout()
 
+    path.parent.mkdir(parents=True, exist_ok=True)
+
     fig = plt.gcf()
     matplot2tikz.clean_figure()
     matplot2tikz.save(path.with_suffix(".tex"))
@@ -250,6 +256,8 @@ def plot_target(target_data: Tensor, path: Path) -> None:
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
+
+    path.parent.mkdir(parents=True, exist_ok=True)
 
     # fig = plt.gcf()
     # # pylint: disable=assignment-from-no-return
