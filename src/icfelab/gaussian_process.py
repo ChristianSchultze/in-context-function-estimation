@@ -7,7 +7,7 @@ from typing import List, Tuple
 import numpy as np
 import torch
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
+from sklearn.gaussian_process.kernels import RBF, ConstantKernel
 from torch.nn.functional import mse_loss
 
 from src.icfelab.utils import load_cfg, plot_gp
@@ -17,17 +17,30 @@ def predict(data: List[dict]) -> Tuple[list, list]:
     gp_results = []
     rbf_scales = []
     loss_values = []
+    std_values = []
+    std_std_values = []
+    count = 0
     for function in data:
+        if function["rbf_scale"] <= 0.1:
+            continue
+        count += 1
         # todo: normalize this as well?
         data = function["input"]
         rbf_scales.append(function["rbf_scale"])
+        # rbf_kernel = ConstantKernel(constant_value=function["std"]**2) * RBF(length_scale=function["rbf_scale"])
         rbf_kernel = RBF(length_scale=function["rbf_scale"])
+        # gp = GaussianProcessRegressor(kernel=rbf_kernel)
         gp = GaussianProcessRegressor(kernel=rbf_kernel, alpha=function["std"]**2)
         gp.fit(np.array(data["indices"])[:, None], np.array(data["values"])[:, None])
         gp_results.append(gp.predict(np.arange(cfg["grid_length"])[:, None], return_std=True))
         loss_values.append(torch.sqrt(
             mse_loss(torch.tensor(gp_results[-1][0]), torch.tensor(function["target"]))))  # todo do this all properly
+        std_values.append(torch.mean(torch.tensor(gp_results[-1][1])))
+        std_std_values.append(torch.std(torch.tensor(gp_results[-1][1])))
     print("GP RMSE", torch.tensor(loss_values).mean())
+    print("GP STD MEAN", torch.tensor(std_values).mean())
+    print("GP STD STD", torch.tensor(std_std_values).mean())
+    print(count)
     return gp_results, rbf_scales
 
 
