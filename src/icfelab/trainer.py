@@ -5,7 +5,7 @@ from typing import Tuple, List
 import lightning
 import torch
 from torch import optim, Tensor
-from torch.nn import ConstantPad1d, TransformerEncoder
+from torch.nn import ConstantPad1d
 from torch.nn.functional import mse_loss
 from torch.optim import Optimizer
 

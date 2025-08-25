@@ -30,7 +30,7 @@ def predict(data: List[dict]) -> Tuple[list, list]:
         rbf_scales.append(function["rbf_scale"])
         rbf_kernel = RBF(length_scale=function["rbf_scale"])
         gp = GaussianProcessRegressor(kernel=rbf_kernel, alpha=function["std"]**2)
-        gp.fit(np.array(data["indices"])[:, None], np.array(data["values"])[:, None])
+        gp.fit(np.array(data["indices"])[:, None], np.array(data["values"])[:, None]) # type: ignore
         # pylint: disable=possibly-used-before-assignment
         gp_results.append(gp.predict(np.arange(cfg["grid_length"])[:, None], return_std=True))
         loss_values.append(torch.sqrt(

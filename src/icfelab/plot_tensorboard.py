@@ -123,7 +123,7 @@ def plot(steps, data, main_color, title, labels, tiks_name, ylabel, legend):
 def plot_multiple(steps, data, main_color, title, labels, tiks_name, ylabel, legend):
     """Plots timeseries with error bands"""
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots() # pylint: disable=unused-variable
 
     for index, timeseries in enumerate(data):
         timeseries[timeseries > 2] = 2

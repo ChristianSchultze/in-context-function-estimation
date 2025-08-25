@@ -165,6 +165,8 @@ class FunctionEstimator(nn.Module):
         Return:
             Estimated function values [B,L,1]
         """
+        assert self.normalizer is not None, "normalizer has to be initialized before calling forward pass."
+
         if self.real_data: # todo: unify this.
             input_indices = (input_indices.squeeze() - input_indices[:, 0, :])
             input_indices = (input_indices / input_indices[:, -1, None])[:, :, None] # cepheid normalization
@@ -172,7 +174,8 @@ class FunctionEstimator(nn.Module):
             input_indices = index_normalization(input_indices, len(output_indices))
 
         output_indices = index_normalization(output_indices, len(output_indices))
-        values = self.normalizer(values) # pylint: disable not-callable # type: ignore
+        # pylint: disable=not-callable
+        values = self.normalizer(values) # type: ignore
         hidden = self.run_encoder(input_indices, values)
 
         result = []

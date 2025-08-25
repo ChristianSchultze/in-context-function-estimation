@@ -86,8 +86,9 @@ def generate_functions(args: argparse.Namespace) -> None:
         save_compressed_json(sample_size_list, Path("data/sample_sizes.lzma"))
 
 
-def sample_random_observation_grids(function: np.ndarray, max_size: int, min_size: int, sample_size: Optional[int] = None) -> \
-Dict[str, list]:
+def sample_random_observation_grids(function: np.ndarray, max_size: int, min_size: int,
+                                    sample_size: Optional[int] = None) -> \
+        Dict[str, list]:
     """Generate random grids to select a random number of points from this function."""
     function_size = len(function)
     indices = np.arange(function_size)

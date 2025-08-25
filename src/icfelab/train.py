@@ -7,9 +7,8 @@ import sys
 import time
 from multiprocessing import Process
 from pathlib import Path
-from typing import Union, List, Tuple
+from typing import Union, List
 
-import numpy as np
 import torch
 import yaml
 from lightning import Trainer

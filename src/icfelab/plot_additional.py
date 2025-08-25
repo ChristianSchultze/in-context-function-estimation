@@ -7,7 +7,7 @@ from scipy.stats import beta
 import numpy as np
 
 
-def plot_beta():
+def plot_beta() -> None:
     """Plot beta distributions to show overlap."""
     x = np.linspace(0, 1, 1000)
     pdf = beta.pdf(x, 2, 10)
@@ -31,7 +31,7 @@ def plot_beta():
     plt.close()
 
 
-def plot_sample_size_histogramm():
+def plot_sample_size_histogramm() -> None:
     """Plot context point sample size histogram."""
     with lzma.open("data/sample_sizes.lzma", "rb") as file:
         data = json.loads(file.read().decode("utf-8"))
