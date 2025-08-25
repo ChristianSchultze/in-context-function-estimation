@@ -10,7 +10,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from torch.nn.functional import mse_loss
 
-from src.icfelab.utils import load_cfg, plot_gp
+from icfelab.utils import load_cfg, plot_gp
 
 
 def predict(data: List[dict]) -> Tuple[list, list]:

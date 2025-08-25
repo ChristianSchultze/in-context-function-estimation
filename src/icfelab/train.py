@@ -22,7 +22,7 @@ from icfelab.trainer import TransformerTrainer, collate_fn
 from icfelab.utils import plot_full_data
 from icfelab.utils import run_processes, load_cfg, initialize_random_split, load_lzma_json_data
 
-from src.icfelab.utils import plot_cepheid
+from icfelab.utils import plot_cepheid
 
 
 def run_multiple_gpus(args: argparse.Namespace) -> None:
