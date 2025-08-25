@@ -24,7 +24,7 @@ python -m icfelab.train -e 200 -n train_run -d data/data.xz -w 4 --config_path c
 
 Evaluation:
 ```` Python
--n test -d data/data.xz -cp config/config.yml --gaussian -w 4 --eval models/model_A --full-eval
+python -m icfelab.train -n test -d data/data.xz -cp config/config.yml --gaussian -w 4 --eval models/model_A --full-eval
 ````
 
 In both modes, a hardcoded amount of functions is plotted into a folder with the same name, as the 
