@@ -58,7 +58,7 @@ def plot_results(results: Tuple[list, list], data: List[dict], limit: int = 12) 
         number += 1
 
 
-def main():
+def main() -> None:
     """Load data and call predict and plot functions."""
     with lzma.open(args.data_path, mode="rb") as file:
         data = json.loads(file.read().decode("utf-8"))

@@ -59,7 +59,7 @@ def main() -> None:
         train(args, device_id)
 
 
-def setup_logging(args) -> None:
+def setup_logging(args: argparse.Namespace) -> None:
     """If activated, this prepares log files, such that logs are no longer written to console."""
     log_path = Path(f"logs/cmd/{args.name}")
     log_path.mkdir(parents=True, exist_ok=True)

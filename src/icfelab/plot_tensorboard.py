@@ -1,6 +1,7 @@
-import json
+# type: ignore
+
 from csv import reader
-from typing import Any, Tuple, List
+from typing import Tuple, List
 
 import matplot2tikz
 import numpy as np

@@ -258,24 +258,8 @@ def plot_target(target_data: Tensor, path: Path) -> None:
 
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    # fig = plt.gcf()
-    # # pylint: disable=assignment-from-no-return
-    # fig = tikzplotlib_fix_ncols(fig)
-    # tikzplotlib.save(path / ".tex")
-
     plt.savefig(path.with_suffix(".pdf"))
     plt.close()
-
-
-def tikzplotlib_fix_ncols(obj):
-    """
-    workaround for matplotlib 3.6 renamed legend's _ncol to _ncols, which breaks tikzplotlib
-    """
-    # pylint: disable=protected-access
-    if hasattr(obj, "_ncols"):  # type: ignore
-        obj._ncol = obj._ncols
-    for child in obj.get_children():
-        tikzplotlib_fix_ncols(child)
 
 
 def create_covariance(rbf_scale: float, grid_length: int = 128, interval: tuple = (0, 1)) -> Tuple[
@@ -286,7 +270,7 @@ def create_covariance(rbf_scale: float, grid_length: int = 128, interval: tuple 
     return kernel(x), kernel
 
 
-def read_cepheid():
+def read_cepheid() -> Tensor:
     """Read cepheid data from csv file and extracts barycentric julian data as well as normalized flux values.
     Columns: Serial Number, BJD, Raw flux, Zero-point shift, Scaling factor, normalized flux, magnitude.
     """
@@ -299,7 +283,7 @@ def read_cepheid():
                      names=column_names)
 
     selected_df = df[['COL2', 'COL6']]
-    tensor = torch.tensor(selected_df.values, dtype=torch.float32)
-    tensor[:, 0] = tensor[:, 0] - tensor[:, 0][0]
+    data = torch.tensor(selected_df.values, dtype=torch.float32)
+    data[:, 0] = data[:, 0] - data[:, 0][0]
 
-    return tensor
+    return data

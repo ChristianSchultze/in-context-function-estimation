@@ -23,7 +23,7 @@ class Normalizer():
         self.difference = self.max_values - self.min_values
         self.difference[min_max_are_close] = 1
 
-    def get_min_max(self, data) -> Tuple[Tensor, Tensor]:
+    def get_min_max(self, data: Tensor) -> Tuple[Tensor, Tensor]:
         """Extract min and max values for each sequence. Pad values are substituted such that they are ignored during
         min a max operation.
 
@@ -172,7 +172,7 @@ class FunctionEstimator(nn.Module):
             input_indices = index_normalization(input_indices, len(output_indices))
 
         output_indices = index_normalization(output_indices, len(output_indices))
-        values = self.normalizer(values) # pylint: disable not-callable
+        values = self.normalizer(values) # pylint: disable not-callable # type: ignore
         hidden = self.run_encoder(input_indices, values)
 
         result = []

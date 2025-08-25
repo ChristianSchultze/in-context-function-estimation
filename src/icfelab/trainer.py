@@ -9,10 +9,10 @@ from torch.nn import ConstantPad1d, TransformerEncoder
 from torch.nn.functional import mse_loss
 from torch.optim import Optimizer
 
-from icfelab.model import Normalizer
+from icfelab.model import Normalizer, FunctionEstimator
 
 
-def collate_fn(batch: Tuple[List[torch.Tensor], ...]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def collate_fn(batch: Tuple[List[torch.Tensor], ...]) -> Tuple[torch.Tensor, ...]:
     """Custom collate function, that pads crops horizontally to fit them all in one tensor batch.
     Args:
         batch: includes List[Tensor] data for input_indices, values, target
@@ -30,8 +30,7 @@ def collate_fn(batch: Tuple[List[torch.Tensor], ...]) -> Tuple[torch.Tensor, tor
     padding_mask = torch.arange(padded_values.shape[1])[None, :] < lengths[:, None]
 
     return padded_input_indices[:, :, None], padded_values[:, :, None], torch.stack(target)[:, :, None], padding_mask[:,
-    :,
-    None]  # type: ignore
+    :, None]  # type: ignore
 
 
 def pad_data(data: List[torch.Tensor], length: int) \
@@ -64,7 +63,7 @@ class TransformerTrainer(lightning.LightningModule):
     """Lightning module for image recognition training. Predict step returns a source object from the dataset as well as
     the softmax prediction."""
 
-    def __init__(self, model: TransformerEncoder, hyper_parameters: dict, real_data: bool) -> None:
+    def __init__(self, model: FunctionEstimator, hyper_parameters: dict, real_data: bool) -> None:
         super().__init__()
         self.model = model
         self.model.real_data = real_data
@@ -74,7 +73,7 @@ class TransformerTrainer(lightning.LightningModule):
 
     def training_step(self, batch: Tuple[Tensor, Tensor, Tensor]) -> torch.Tensor:
         self.model.train()
-        loss, secondary_loss, _ = self.run_model(*batch)
+        loss, secondary_loss, _ = self.run_model(*batch) # type: ignore
         if not self.gaussian:
             secondary_loss = loss
         self.log("train_loss", secondary_loss.detach().cpu(), batch_size=self.batch_size,
@@ -102,7 +101,7 @@ class TransformerTrainer(lightning.LightningModule):
 
         return loss, secondary_loss, pred_tuple
 
-    def calculate_loss(self, pred_tuple: Tensor, target: Tensor) -> Tuple[Tensor]:
+    def calculate_loss(self, pred_tuple: Tensor, target: Tensor) -> Tuple[Tensor, Tensor]:
         """
         Calculate gaussian nll loss if gaussian mode and rmse loss otherwise.
         Args:
@@ -145,7 +144,7 @@ class TransformerTrainer(lightning.LightningModule):
     def evaluate_prediction(self, batch: Tuple[Tensor, Tensor, Tensor], name: str) -> None:
         """Evaluate input batch and log with supplied name tag.
         Predicts model, converts output tokens to text and calculates levenshtein distance."""
-        result = self.run_model(*batch)
+        result = self.run_model(*batch) # type: ignore
         loss, secondary_loss, _ = result
         if self.gaussian:
             secondary_loss, loss, _ = result
@@ -156,7 +155,7 @@ class TransformerTrainer(lightning.LightningModule):
         Tensor, Tuple[Tensor, Tensor, Tensor], Tensor]:
         """Evaluate test dataset"""
         self.model.eval()
-        _, _, pred_tuple = self.run_model(*batch)
+        _, _, pred_tuple = self.run_model(*batch) # type: ignore
 
         if self.gaussian:
             mean_pred, var_pred = pred_tuple
