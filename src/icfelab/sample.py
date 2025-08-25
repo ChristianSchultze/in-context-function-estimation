@@ -58,13 +58,13 @@ def generate_functions(args: argparse.Namespace) -> None:
         with lzma.open(args.load_sample_sizes, "rb") as file:
             sample_sizes = json.loads(file.read().decode("utf-8"))
         assert (
-                    len(sample_sizes) >= number_functions), (f"Too few sample size parameters provided. Number of "
-                                                             f"functions to generate: {number_functions}, length of "
-                                                             f"sample size list: {len(sample_sizes)}")
+                len(sample_sizes) >= number_functions), (f"Too few sample size parameters provided. Number of "
+                                                         f"functions to generate: {number_functions}, length of "
+                                                         f"sample size list: {len(sample_sizes)}")
 
     for i in tqdm(range(number_functions), desc="Generating functions", unit="functions"):
         rbf_scale = beta_sample_single_value(args.alpha, args.beta)
-        co_var, rbf_kernel = create_covariance(rbf_scale, grid_length=grid_length)
+        co_var, _ = create_covariance(rbf_scale, grid_length=grid_length)
         function = np.random.multivariate_normal(mean=np.zeros(co_var.shape[0]), cov=co_var, size=1).squeeze()
         if args.load_sample_sizes:
             data = sample_random_observation_grids(function, args.max, args.min, sample_sizes[i])
@@ -86,12 +86,13 @@ def generate_functions(args: argparse.Namespace) -> None:
         save_compressed_json(sample_size_list, Path("data/sample_sizes.lzma"))
 
 
-def sample_random_observation_grids(function: np.ndarray, max: int, min: int, sample_size: Optional[int] = None) -> Dict[str, list]:
+def sample_random_observation_grids(function: np.ndarray, max_size: int, min_size: int, sample_size: Optional[int] = None) -> \
+Dict[str, list]:
     """Generate random grids to select a random number of points from this function."""
     function_size = len(function)
     indices = np.arange(function_size)
     if sample_size is None:
-        number_of_points = np.random.randint(min, max + 1)
+        number_of_points = np.random.randint(min_size, max_size + 1)
     else:
         number_of_points = sample_size
     random_grid = np.random.choice(indices, size=number_of_points, replace=False)
@@ -118,7 +119,7 @@ def save_compressed_json(serializable_object: Any, target_path: Path) -> None:
         file.write(json_bytes)
 
 
-def get_args() -> argparse.Namespace:
+def get_args() -> argparse.ArgumentParser:
     """
     Defines arguments.
 
@@ -151,7 +152,8 @@ def get_args() -> argparse.Namespace:
         "--load-sample-sizes",
         type=str,
         default=None,
-        help="If this contains a path, activates samples size loading. Amound of samples per function will not be random but loaded from "
+        help="If this contains a path, activates samples size loading. Amound of samples per function will not be"
+             " random but loaded from "
              "a lzma compressed json file."
     )
     parser.add_argument(
@@ -178,10 +180,9 @@ def get_args() -> argparse.Namespace:
         default=5,
         help="Minimum number of samples in the observation grid"
     )
-    return parser.parse_args()
+    return parser
 
 
 if __name__ == "__main__":
     # todo: load grid length from config
-    args = get_args()
-    generate_functions(args)
+    generate_functions(get_args().parse_args())

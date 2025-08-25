@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from src.icfelab.sample import save_compressed_json
-from src.icfelab.utils import read_cepheid, plot_raw
+from src.icfelab.utils import read_cepheid
 
 data = read_cepheid()
 # plot_raw(data[:, 0], data[:, 1], Path("cepheid"))

@@ -8,7 +8,7 @@ import numpy as np
 
 
 def plot_beta():
-    sampled_values = []
+    """Plot beta distributions to show overlap."""
     x = np.linspace(0, 1, 1000)
     pdf = beta.pdf(x, 2, 10)
     pdf_2 = beta.pdf(x, 2, 5)
@@ -23,7 +23,7 @@ def plot_beta():
     plt.legend()
     plt.tight_layout()
 
-    fig = plt.gcf()
+    fig = plt.gcf() # pylint: disable=unused-variable
     matplot2tikz.clean_figure()
     matplot2tikz.save("beta.tex")
 
@@ -32,6 +32,7 @@ def plot_beta():
 
 
 def plot_sample_size_histogramm():
+    """Plot context point sample size histogram."""
     with lzma.open("data/sample_sizes.lzma", "rb") as file:
         data = json.loads(file.read().decode("utf-8"))
 
@@ -47,7 +48,7 @@ def plot_sample_size_histogramm():
     plt.tight_layout()
     plt.show()
 
-    fig = plt.gcf()
+    fig = plt.gcf() # pylint: disable=unused-variable
     matplot2tikz.clean_figure()
     matplot2tikz.save("sample_hist.tex")
 

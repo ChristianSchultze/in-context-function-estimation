@@ -172,7 +172,7 @@ class FunctionEstimator(nn.Module):
             input_indices = index_normalization(input_indices, len(output_indices))
 
         output_indices = index_normalization(output_indices, len(output_indices))
-        values = self.normalizer(values)
+        values = self.normalizer(values) # pylint: disable not-callable
         hidden = self.run_encoder(input_indices, values)
 
         result = []

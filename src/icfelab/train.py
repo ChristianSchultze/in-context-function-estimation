@@ -59,14 +59,15 @@ def main() -> None:
         train(args, device_id)
 
 
-def setup_logging(args):
+def setup_logging(args) -> None:
+    """If activated, this prepares log files, such that logs are no longer written to console."""
     log_path = Path(f"logs/cmd/{args.name}")
     log_path.mkdir(parents=True, exist_ok=True)
     start_time = time.time()
     out_path = log_path / f"{start_time}.out"
     err_path = log_path / f"{start_time}.err"
-    sys.stdout = open(out_path, "w", encoding="utf-8")
-    sys.stdout = open(err_path, "w", encoding="utf-8")
+    sys.stdout = open(out_path, "w", encoding="utf-8")  # pylint: disable=consider-using-with
+    sys.stdout = open(err_path, "w", encoding="utf-8")  # pylint: disable=consider-using-with
     if Path("latest.out").exists():
         os.remove("latest.out")
     if Path("latest.err").exists():
@@ -129,7 +130,7 @@ def get_trainer(args: argparse.Namespace, checkpoint_callback: ModelCheckpoint, 
 
 
 def eval_train(args: argparse.Namespace, cfg: dict, checkpoint_callback: ModelCheckpoint, ckpt_dir: Path,
-               eval_batch_size: int, model: FunctionEstimator, test_dataset: Dataset,
+               eval_batch_size: int, model: FunctionEstimator, test_dataset: SampleDataset,
                test_loader: DataLoader,
                trainer: Trainer) -> None:
     """
@@ -148,27 +149,17 @@ def eval_train(args: argparse.Namespace, cfg: dict, checkpoint_callback: ModelCh
     print()
     trainer.test(lit_model, dataloaders=test_loader)
 
-    prepare_predictions(args, cfg, eval_batch_size, lit_model, test_dataset, test_loader, trainer)
+    prepare_predictions(args, eval_batch_size, lit_model, test_dataset, test_loader, trainer)
 
 
-def prepare_predictions(args, cfg, eval_batch_size, lit_model, test_dataset, test_loader, trainer):
-    gp_results = []
+def prepare_predictions(args: argparse.Namespace, eval_batch_size: int, lit_model: TransformerTrainer,
+                        test_dataset: SampleDataset, test_loader: DataLoader, trainer: Trainer) -> None:
+    """Creates prediction dataloader and collects rbf-scale values."""
     rbf_scales = []
-    loss_values = []
     for function in test_loader.dataset.data:
-        # todo: normalize this as well?
-        data = function["input"]
         rbf_scales.append(function["rbf_scale"])
-        # rbf_kernel = RBF(length_scale=function["rbf_scale"])
-        # gp = GaussianProcessRegressor(kernel=rbf_kernel, alpha=0.1)
-        # gp.fit(np.array(data["indices"])[:, None], np.array(data["values"])[:, None])
-        # gp_results.append(gp.predict(np.arange(cfg["grid_length"])[:, None], return_std=True))
-        gp_results.append((data["indices"], data["values"]))
-    #     loss_values.append(torch.sqrt(mse_loss(torch.tensor(gp_results[-1][0]), torch.tensor(function["target"])))) # todo do this all properly
-    # print("GP RMSE", torch.tensor(loss_values).mean())
     print(torch.tensor(rbf_scales, dtype=torch.float).mean())
     predict_dataset = SampleDataset(test_dataset.data[:12])
-    predict_gp_results = gp_results[:12]
     predict_loader = DataLoader(
         predict_dataset,
         batch_size=eval_batch_size,
@@ -178,11 +169,12 @@ def prepare_predictions(args, cfg, eval_batch_size, lit_model, test_dataset, tes
         num_workers=1,
         persistent_workers=True,
     )
-    plot_predictions(args, lit_model, predict_loader, trainer, predict_gp_results, rbf_scales)
+    plot_predictions(args, lit_model, predict_loader, trainer, rbf_scales)
 
 
 def plot_predictions(args: argparse.Namespace, lit_model: TransformerTrainer, predict_loader: DataLoader,
-                     trainer: Trainer, gp_results: List[Tuple[np.ndarray, np.ndarray]], rbf_scales: List[float]) -> None:
+                     trainer: Trainer,
+                     rbf_scales: List[float]) -> None:
     """
     Unpack predicted batches and plot predicted functions.
     """
@@ -202,7 +194,7 @@ def plot_predictions(args: argparse.Namespace, lit_model: TransformerTrainer, pr
 
         for i, pred_data in enumerate(prediction):
             plot_function(pred_data, std[i], target[i], indices[i], values[i],  # type: ignore
-                           pred_plot_path / f"{number}", gp_results[i][0], gp_results[i][1], rbf_scales[i])
+                          pred_plot_path / f"{number}", rbf_scales[i])
             number += 1
 
 
@@ -218,24 +210,24 @@ def evaluate(args: argparse.Namespace, cfg: dict, eval_batch_size: int, test_dat
         checkpoint_path=model_path, model=model, hyper_parameters=cfg["training"], real_data=args.real_data
     )
     trainer.test(lit_model, dataloaders=test_loader)
-    prepare_predictions(args, cfg, eval_batch_size, lit_model, test_dataset, test_loader, trainer)
+    prepare_predictions(args, eval_batch_size, lit_model, test_dataset, test_loader, trainer)
 
 
 def init_training(args: argparse.Namespace) -> tuple:
     """Initialize training by loading config and setting up the model and Dataloaders"""
+    # todo: Create class for this, then return instance of that class
     torch.set_float32_matmul_precision("high")
     data_path = Path(args.data_path)
     config_path = Path(args.config_path)
     # define any number of nn.Modules (or use your current ones)
     if not args.eval:
         cfg = load_cfg(config_path)
-        full_eval = False
+        args.full_eval = False
     else:
-        full_eval = args.full_eval
         cfg = load_cfg(Path(args.eval) / "model.yml")
     ckpt_dir = Path(f"models/{args.name}")
     ckpt_dir.mkdir(parents=True, exist_ok=True)
-    test_dataset, train_dataset, validation_dataset = get_datasets(cfg, data_path, full_eval)
+    test_dataset, train_dataset, validation_dataset = get_datasets(cfg, data_path, args.full_eval)
     model = FunctionEstimator(cfg["encoder"]["dim"], cfg["encoder"]["num_head"], cfg["encoder"]["num_layers"],
                               cfg["encoder"]["dim_feedforward"], gaussian=args.gaussian).train()
 
@@ -340,7 +332,8 @@ def get_args() -> argparse.Namespace:
         "--eval",
         type=str,
         default=None,
-        help="If a model path (path to folder) is provided, this will execute the test run on said model, using the provided config file.",
+        help="If a model path (path to folder) is provided, this will execute the test run on said model, using the "
+             "provided config file.",
     )
     parser.add_argument(
         "--config_path",

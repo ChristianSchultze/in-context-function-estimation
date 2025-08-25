@@ -100,12 +100,12 @@ def plot_single_prediction(pred_data: Tensor, target_data: Tensor, indices: Tens
 
 
 def plot_raw(indices: Tensor, values: Tensor,
-              path: Path) -> None:
+             path: Path) -> None:
     """Plot ground truth function with context points."""
     # pylint: disable=duplicate-code
     plt.figure(figsize=(8, 4))
 
-    plt.scatter(indices*24, values, label="observations", color='green')
+    plt.scatter(indices * 24, values, label="observations", color='green')
 
     plt.title("")
     plt.xlabel("hours")
@@ -114,7 +114,7 @@ def plot_raw(indices: Tensor, values: Tensor,
     plt.legend()
     plt.tight_layout()
 
-    fig = plt.gcf()
+    fig = plt.gcf()  # pylint: disable=unused-variable
     matplot2tikz.clean_figure()
     matplot2tikz.save(path.with_suffix(".tex"))
 
@@ -152,7 +152,7 @@ def plot_test(target_data: Tensor, indices: Tensor, values: Tensor,
 
 
 def plot_gp(target_data: Tensor, indices: Tensor, values: Tensor,
-              path: Path, gp_data: Tensor, gp_std: Tensor, rbf_scale: float) -> None:
+            path: Path, gp_data: Tensor, gp_std: Tensor, rbf_scale: float) -> None:
     """Plot ground truth function with context points."""
     # pylint: disable=duplicate-code
     x_data = torch.arange(len(target_data)) / len(target_data)
@@ -173,7 +173,7 @@ def plot_gp(target_data: Tensor, indices: Tensor, values: Tensor,
 
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig = plt.gcf()
+    fig = plt.gcf()  # pylint: disable=unused-variable
     matplot2tikz.clean_figure()
     matplot2tikz.save(path.with_suffix(".tex"))
 
@@ -181,12 +181,13 @@ def plot_gp(target_data: Tensor, indices: Tensor, values: Tensor,
     plt.close()
 
 
+# pylint: disable=unused-argument
 def plot_cepheid(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, indices: Tensor, values: Tensor,
-              path: Path, gp_data: ndarray, gp_std: ndarray, rbf_scale: float) -> None:
+                 path: Path, rbf_scale: float) -> None:
     """Plot targets and context points with gp and model predictions."""
     # pylint: disable=duplicate-code
     indices = indices * 24
-    x_data = np.linspace(indices[0], indices[-1], 128) # cepheid normalisation
+    x_data = np.linspace(indices[0], indices[-1], 128)  # cepheid normalisation
     plt.figure(figsize=(8, 4))
 
     plt.scatter(indices, values, label="context points", color='green')
@@ -201,7 +202,7 @@ def plot_cepheid(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, indic
 
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig = plt.gcf()
+    fig = plt.gcf() # pylint: disable=unused-variable
     matplot2tikz.clean_figure()
     matplot2tikz.save(path.with_suffix(".tex"))
 
@@ -210,7 +211,7 @@ def plot_cepheid(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, indic
 
 
 def plot_full_data(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, indices: Tensor, values: Tensor,
-              path: Path, gp_data: ndarray, gp_std: ndarray, rbf_scale: float) -> None:
+                   path: Path, rbf_scale: float) -> None:
     """Plot targets and context points with gp and model predictions."""
     # pylint: disable=duplicate-code
     x_data = torch.arange(len(target_data)) / len(target_data)
@@ -218,8 +219,6 @@ def plot_full_data(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, ind
 
     plt.figure(figsize=(8, 4))
 
-    # plt.plot(x_data, gp_data, label="gp prediction", color='orange')
-    # plt.fill_between(x_data, gp_data - gp_std, gp_data + gp_std, color="tab:orange", alpha=0.3)
     plt.plot(x_data, target_data, label="target", color='blue')
     plt.scatter(indices, values, label="context points", color='green')
     plt.plot(x_data, pred_data, label="prediction", color='red')
@@ -234,7 +233,7 @@ def plot_full_data(pred_data: Tensor, pred_std: Tensor, target_data: Tensor, ind
 
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig = plt.gcf()
+    fig = plt.gcf() # pylint: disable=unused-variable
     matplot2tikz.clean_figure()
     matplot2tikz.save(path.with_suffix(".tex"))
 
@@ -288,22 +287,19 @@ def create_covariance(rbf_scale: float, grid_length: int = 128, interval: tuple 
 
 
 def read_cepheid():
-    # Replace with your actual filename
+    """Read cepheid data from csv file and extracts barycentric julian data as well as normalized flux values.
+    Columns: Serial Number, BJD, Raw flux, Zero-point shift, Scaling factor, normalized flux, magnitude.
+    """
     filename = "cepheid_data.csv"
 
-    # Read the file as whitespace-delimited (space/tab)
-    # There are 7 columns, so we map them all
     column_names = ['COL1', 'COL2', 'COL3', 'COL4', 'COL5', 'COL6', 'COL7']
     df = pd.read_csv(filename,
                      delim_whitespace=True,
                      header=None,
                      names=column_names)
 
-    # Extract COL1 (serial number) and COL6 (detrended flux)
-    selected_df = df[['COL2', 'COL3']]
-
-    # Convert to torch tensor
+    selected_df = df[['COL2', 'COL6']]
     tensor = torch.tensor(selected_df.values, dtype=torch.float32)
-    tensor[:,0] = tensor[:,0] - tensor[:,0][0]
+    tensor[:, 0] = tensor[:, 0] - tensor[:, 0][0]
 
     return tensor

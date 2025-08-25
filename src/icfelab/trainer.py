@@ -4,7 +4,7 @@ from typing import Tuple, List
 
 import lightning
 import torch
-from torch import optim, Tensor, nn
+from torch import optim, Tensor
 from torch.nn import ConstantPad1d, TransformerEncoder
 from torch.nn.functional import mse_loss
 from torch.optim import Optimizer
@@ -30,8 +30,8 @@ def collate_fn(batch: Tuple[List[torch.Tensor], ...]) -> Tuple[torch.Tensor, tor
     padding_mask = torch.arange(padded_values.shape[1])[None, :] < lengths[:, None]
 
     return padded_input_indices[:, :, None], padded_values[:, :, None], torch.stack(target)[:, :, None], padding_mask[:,
-                                                                                                         :,
-                                                                                                         None]  # type: ignore
+    :,
+    None]  # type: ignore
 
 
 def pad_data(data: List[torch.Tensor], length: int) \
@@ -77,8 +77,8 @@ class TransformerTrainer(lightning.LightningModule):
         loss, secondary_loss, _ = self.run_model(*batch)
         if not self.gaussian:
             secondary_loss = loss
-        self.log("train_loss", secondary_loss.detach().cpu(), batch_size=self.batch_size, prog_bar=False, on_epoch=True,
-                 on_step=True)
+        self.log("train_loss", secondary_loss.detach().cpu(), batch_size=self.batch_size,
+                 prog_bar=False, on_epoch=True, on_step=True)
         self.log("train_nll_loss", loss.detach().cpu(), batch_size=self.batch_size, prog_bar=True, on_epoch=True,
                  on_step=True)
         return loss
@@ -118,15 +118,16 @@ class TransformerTrainer(lightning.LightningModule):
             mean_pred, var_log_pred = pred_tuple
             target = self.model.normalizer(target, padding=False)
             loss = 0.5 * (math.log(2 * math.pi) + var_log_pred + (
-                                      (target[:, :, 0] - mean_pred) ** 2) / torch.exp(var_log_pred) + 1e-6)
+                    (target[:, :, 0] - mean_pred) ** 2) / torch.exp(var_log_pred) + 1e-6)
             loss = torch.mean(loss)
 
-            std = torch.mean(self.model.normalizer.difference * torch.sqrt(torch.exp(var_log_pred))) # log mean std
+            std = torch.mean(self.model.normalizer.difference * torch.sqrt(torch.exp(var_log_pred)))  # log mean std
             print(std.detach().cpu().item())
 
         return loss, secondary_loss
 
     def calculate_rmse(self, pred: Tensor, target: Tensor) -> Tensor:
+        """Unnormalize prediction and compare to target data."""
         pred = self.model.normalizer.unnormalize(pred)
         loss = torch.sqrt(mse_loss(pred, target[:, :, 0]))
         return loss
@@ -144,11 +145,10 @@ class TransformerTrainer(lightning.LightningModule):
     def evaluate_prediction(self, batch: Tuple[Tensor, Tensor, Tensor], name: str) -> None:
         """Evaluate input batch and log with supplied name tag.
         Predicts model, converts output tokens to text and calculates levenshtein distance."""
-        loss, secondary_loss, _ = self.run_model(*batch)
+        result = self.run_model(*batch)
+        loss, secondary_loss, _ = result
         if self.gaussian:
-            temp = loss
-            loss = secondary_loss
-            secondary_loss = temp
+            secondary_loss, loss, _ = result
         self.log(f"{name}_loss", loss.detach().cpu(), batch_size=self.batch_size, prog_bar=False)
         self.log(f"{name}_nll_loss", secondary_loss.detach().cpu(), batch_size=self.batch_size, prog_bar=False)
 
